@@ -15,7 +15,7 @@ class AverageMeter(BaseMeter):
         self.reset()
 
     def add(self, val, count=1):
-        self.sum = val*count
+        self.sum += val*count
         self.count += count
 
     def reset(self):

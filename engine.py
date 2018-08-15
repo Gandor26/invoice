@@ -3,6 +3,7 @@ import torch as tc
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch import optim
+from tqdm import tqdm
 from model import Model
 from loader import Dataset
 from metric import AverageMeter, TimeMeter
@@ -12,7 +13,7 @@ class Engine(object):
     def __init__(self, args):
         super(Engine, self).__init__()
         data_dir = os.path.expanduser(args.data_dir)
-        train_dir = os.path.join(args.data_dir, 'training')
+        train_dir = os.path.join(args.data_dir, 'train')
         valid_dir = os.path.join(args.data_dir, 'valid')
         self.train_set = Dataset(train_dir, args.cuda)
         self.valid_set = Dataset(valid_dir, args.cuda)
@@ -21,7 +22,7 @@ class Engine(object):
         model = Model(10, args.dropout)
         self.model = model.cuda() if args.cuda else model
         self.optimizer = optim.SGD(self.model.parameters(), args.lr, momentum=args.mmtm, weight_decay=args.wd)
-        self.decayer = optim.lr_scheduler.StepLR(self.optimizer, step_size=1000, gamma=0.2)
+        self.decayer = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.2)
         self.dump_dir = get_dir(args.dump_dir)
 
     def dump(self, epoch, metric, model=True, optimizer=True, decayer=True, tag=None):
@@ -51,10 +52,12 @@ class Engine(object):
     def eval(self):
         meter = AverageMeter('acc')
         for samples, labels in self.valid_loader:
-            preds = self.model(samples)
+            with tc.no_grad():
+                preds = self.model(samples)
             _, top = preds.topk(1, dim=1)
+            #print(tc.stack([labels, top.squeeze(dim=1)], dim=1))
             acc = labels.eq(top.squeeze(dim=1)).float().mean()
-            meter.add(acc.numpy().item(), labels.size(0))
+            meter.add(acc.item(), labels.size(0))
         return meter.read()
 
     def train(self, num_epochs, resume=False):
@@ -66,17 +69,17 @@ class Engine(object):
         meter = AverageMeter()
         for epoch in range(start_epoch, num_epochs):
             self.decayer.step()
-            for samples, labels in self.train_loader:
+            for samples, labels in self.train_loader:#:, total=len(self.train_loader)):
                 preds = self.model(samples)
                 loss = F.cross_entropy(preds, labels)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                meter.add(loss.numpy().item(), labels.size(0))
+                meter.add(loss.item(), labels.size(0))
             acc = self.eval()
             if acc > best_acc:
                 best_acc = acc
                 self.dump(epoch+1, acc)
-            print('Epoch {:02d}, elapsed Time {:.2f}, loss = {.4f}, acc = {:.4f}'.format(
+            print('Epoch {:02d}, elapsed Time {:.2f}, loss = {:.4f}, acc = {:.4f}'.format(
                 epoch+1, timer.read(), meter.read(), acc))
 
