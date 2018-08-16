@@ -106,6 +106,8 @@ venv.bak/
 
 # data
 data/
+data*
+warehouse/
 
 # MacOS
 .DS_Store
