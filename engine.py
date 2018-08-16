@@ -51,11 +51,10 @@ class Engine(object):
 
     def eval(self):
         meter = AverageMeter('acc')
-        for samples, labels in self.valid_loader:
+        for samples, labels in tqdm(self.valid_loader, desc='Valid'):
             with tc.no_grad():
                 preds = self.model(samples)
             _, top = preds.topk(1, dim=1)
-            #print(tc.stack([labels, top.squeeze(dim=1)], dim=1))
             acc = labels.eq(top.squeeze(dim=1)).float().mean()
             meter.add(acc.item(), labels.size(0))
         return meter.read()
@@ -69,7 +68,7 @@ class Engine(object):
         meter = AverageMeter()
         for epoch in range(start_epoch, num_epochs):
             self.decayer.step()
-            for samples, labels in self.train_loader:#:, total=len(self.train_loader)):
+            for samples, labels in tqdm(self.train_loader, desc='Train epoch {}'.format(epoch+1)):
                 preds = self.model(samples)
                 loss = F.cross_entropy(preds, labels)
                 self.optimizer.zero_grad()

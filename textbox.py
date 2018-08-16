@@ -6,8 +6,8 @@ import numpy as np
 import json
 import os
 
-ROOT_FOLDER = os.path.expanduser('~/workspace/invoice')
-REMOVAL_CHAR = ",;:.*-'\"i"
+DATA_FOLDER = os.path.expanduser('~/workspace/invoice/data')
+REMOVAL_CHAR = ",;:.*-'\"i#"
 JOIN_CHAR = {'SPACE': ' ', 'SURE_SPACE': ' ', 'EOL_SURE_SPACE': '\t', 'LINE_BREAK': '\n', 'HYPHEN': '\t', 'EMPTY': ''}
 BOX_COLOR = cycle('bgrcmy')
 
@@ -89,6 +89,10 @@ class BoundingBox(object):
         return self.anchor >= box.anchor
     def __len__(self):
         return len(self.sub_boxes)
+    def __getitem__(self, index):
+        if self.sub_boxes is None:
+            raise IndexError('No sub boxes available')
+        return self.sub_boxes[index]
     def __repr__(self):
         return '{} at {}\ntext: {}'.format(self.__class__.__name__, self.anchor, self.text)
 
@@ -118,7 +122,7 @@ class BoundingBox(object):
         left = max(0, int(w*self.anchor.x)-padding_pixels)
         right = min(w, int(w*self.anchor.xx)+padding_pixels)
         sub_image = self.image[upper:lower, left:right]
-        fig, ax = plt.subplots(1, figsize=(10,10))
+        fig, ax = plt.subplots(1, figsize=(20,20))
         ax.imshow(sub_image, cmap='gray')
         if (show_sub_boxes) and (self.sub_boxes is not None):
             for box, c in zip(self.sub_boxes, BOX_COLOR):
@@ -147,9 +151,9 @@ class BoundingBox(object):
             self.super_box.rotate(angle)
 
 def parse_ocr_json(guid):
-    with open(os.path.join(ROOT_FOLDER, 'data', 'ocr', '{}_output-1-to-1.json'.format(guid))) as f:
+    with open(os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))) as f:
         parsed = json.load(f)
-    image = img_as_float32(imread(os.path.join(ROOT_FOLDER, 'data_exp2', 'img', 'train', '{}.png'.format(guid))))
+    image = img_as_float32(imread(os.path.join(DATA_FOLDER, 'img', 'train', '{}.png'.format(guid))))
     for page in parsed['responses'][0]['fullTextAnnotation']['pages']:
         block_boxes = []
         for block in page['blocks']:
@@ -157,18 +161,20 @@ def parse_ocr_json(guid):
             for paragraph in block['paragraphs']:
                 word_boxes = []
                 for word in paragraph['words']:
-                    purified = ''.join(symbol['text'] for symbol in word['symbols'] if symbol['text'] not in REMOVAL_CHAR)
-                    if len(purified) == 0:
-                        continue
                     word_text = ''.join(symbol['text'] for symbol in word['symbols'])
-                    detected_break = JOIN_CHAR[word['symbols'][-1]['property'].get('detectedBreak', {'type':'EMPTY'})['type']]
+                    detected_break = JOIN_CHAR[word['symbols'][-1].get('property',{}).get('detectedBreak',{}).get('type', 'EMPTY')]
                     word_text += detected_break
                     try:
                         word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], image=image, text=word_text))
                     except KeyError:
                         continue
                 if len(word_boxes) > 0:
-                    paragraph_boxes.append(BoundingBox.aggregate(*word_boxes))
+                    paragraph_box = BoundingBox.aggregate(*word_boxes)
+                    purified = ''.join(c for c in paragraph_box.text if not ((c in REMOVAL_CHAR) or (c in JOIN_CHAR.values())))
+                    if len(purified) == 0:
+                        continue
+                    else:
+                        paragraph_boxes.append(BoundingBox.aggregate(*word_boxes))
                 else:
                     continue
             if len(paragraph_boxes) > 0:
