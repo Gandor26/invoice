@@ -1,17 +1,8 @@
+from .configs import *
 import pymongo as mg
 from joblib import Parallel, delayed
 
 __all__ = ['aggregate', 'ordered_lookup', 'get_top_vhosts', 'get_guids_by_vhost', 'get_guids_by_top_vendor', 'get_labels']
-
-DB_NAME = 'invoice'
-TRAIN_COLLECTION = 'train_set'
-TEST_COLLECTION = 'test_set'
-GUID_FIELD_NAME = 'attachment_guid'
-VHOST_FIELD_NAME = 'vhost'
-ACCOUNT_FIELD_NAME = 'account_name'
-VENDOR_FIELD_NAME = 'vendor_id'
-PROPERTY_FIELD_NAME = 'property_id'
-TOTAL_FIELD_NAME = 'total'
 
 def get_collection(train):
     return TRAIN_COLLECTION if train else TEST_COLLECTION
@@ -73,7 +64,7 @@ def get_top_vhosts(top_n=None, client=None, db=DB_NAME, train=True):
     return results
 
 def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=True):
-    match = {'$match': {'vhost':{'$in':vhosts}}}
+    match = {'$match': {'vhost':{'$in':vhosts}, 'num_properties':{'$lt':2}}}
     group = {'$group': {'_id':{'vhost':'$vhost', 'vendor':'$vendor_id'}, 'count':{'$sum':1}, 'guids':{'$push': '$attachment_guid'}}}
     limit = {'$match': {'count': {'$gt':least}}}
     proj = {'$project': {'_id':0, 'guids':1}}
@@ -84,11 +75,12 @@ def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=True):
     return guids
 
 def get_guids_by_top_vendor(limit=100, client=None, db=DB_NAME, train=True):
+    match = {'$match': {'num_properties':{'$lt':2}}}
     group = {'$group': {'_id':{'vhost':'$vhost', 'vendor':'$vendor_id'}, 'count':{'$sum':1}, 'guids':{'$push': '$attachment_guid'}}}
     limit = {'$limit': limit}
     sort = {'$sort': {'count': -1}}
     proj = {'$project': {'_id':0, 'guids':1}}
-    pipeline = [group, sort, limit, proj]
+    pipeline = [match, group, sort, limit, proj]
     guids = []
     for r in aggregate(*pipeline, client=client, db=db, train=train):
         guids.extend(r['guids'])

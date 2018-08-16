@@ -1,17 +1,55 @@
+from .configs import *
 from .database import get_labels
 from .misc import get_dir, get_logger
+from google.cloud import storage as gs
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from shutil import copy
 import threading
 import logging
 import boto3
 import os
 
-__all__ = ['download_and_convert']
-DATA_FOLDER = os.path.expanduser('~/workspace/invoice/data_exp2')
+__all__ = ['download_and_convert', 'download_ocr']
 
-def _check_duplicate(path):
-    return os.path.exists(path)
+def _check_duplicate_pdf(guid, train):
+    data_path = os.path.join(DATA_FOLDER, 'pdf', 'train' if train else 'test', '{}.pdf'.format(guid))
+    ware_path = os.path.join(WAREHOUSE, 'pdf', 'train' if train else 'test', '{}.pdf'.format(guid))
+    if os.path.exists(data_path):
+        if not os.path.exists(ware_path):
+            copy(data_path, ware_path)
+        return True
+    elif os.path.exists(ware_path):
+        copy(ware_path, data_path)
+        return True
+    else:
+        return False
+
+def _check_duplicate_img(guid, train, image_format):
+    data_path = os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test', '{}.{}'.format(guid, image_format))
+    ware_path = os.path.join(WAREHOUSE, 'img', 'train' if train else 'test', '{}.{}'.format(guid, image_format))
+    if os.path.exists(data_path):
+        if not os.path.exists(ware_path):
+            copy(data_path, ware_path)
+        return True
+    elif os.path.exists(ware_path):
+        copy(ware_path, data_path)
+        return True
+    else:
+        return False
+
+def _check_duplicate_json(guid):
+    data_path = os.path.join(LOCAL_OCR_DUMP, '{}.json'.format(guid))
+    ware_path = os.path.join(WARE_OCR_DUMP, 'ocr', '{}.json'.format(guid))
+    if os.path.exists(data_path):
+        if not os.path.exists(ware_path):
+            copy(data_path, ware_path)
+        return True
+    elif os.path.exists(ware_path):
+        copy(ware_path, data_path)
+        return True
+    else:
+        return False
 
 def _download_and_convert(guid, account, train, thread_storage, image_format):
     if getattr(thread_storage, 's3_client', None) is None:
@@ -32,19 +70,49 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
     else:
         key = objects[0]['Key']
     pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf', 'train' if train else 'test')), '{}.pdf'.format(guid))
-    img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test')), '{}.png'.format(guid))
-    if not _check_duplicate(pdf_path):
+    img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test')), '{}.{}'.format(guid, image_format))
+    if not _check_duplicate_pdf(guid, train):
         thread_storage.s3client.download_file(bucket_name, key, pdf_path)
+        _check_duplicate_pdf(guid, train)
+    else:
+        thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     gs_device = '{}gray'.format(image_format)
-    command = 'gs -q -dNOPAUSE -sDEVICE={} -r300 -dINTERPOLATE -dFirstPage=1 -dLastPage=1 -dGraphicsAlphaBits=4 -g2550x3300 -dPDFFitPage -dUseCropBox\
+    command = 'gs -q -dNOPAUSE -sDEVICE={} -r300 -dINTERPOLATE -dFirstPage=1 -dLastPage=1 -dGraphicsAlphaBits=4 -dPDFFitPage -dUseCropBox\
             -sOutputFile={} -c 30000000 setvmthreshold -f {} -c quit'
-    if not _check_duplicate(img_path):
+    if not _check_duplicate_img(guid, train, image_format):
         os.system(command.format(gs_device, img_path, pdf_path))
+        _check_duplicate_img(guid, train, image_format)
+    else:
+        thread_storage.logger.warn('Image of {} already dumped locally'.format(guid))
 
-def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=True, image_format='png'):
+def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=True, image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
     Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
             (delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)\
             for guid, account in tqdm(zip(guids, get_labels(*guids, account=True, flatten=True)), total=len(guids)))
 
+def _download_ocr_file(guid, thread_storage):
+    if getattr(thread_storage, 'client', None) is None:
+        thread_storage.client = gs.Client()
+    client = thread_storage.client
+    if getattr(thread_storage, 'logger', None) is None:
+        thread_storage.logger = get_logger()
+    logger = thread_storage.logger
+    dst_bucket = client.get_bucket(bucket_name=GOOGLE_OUTPUT_BUCKET)
+    blobs = list(dst_bucket.list_blobs(prefix=guid))
+    if len(blobs) < 1:
+        logger.error('Cannot find OCR output file of {}'.format(guid))
+    else:
+        blob = blobs[0]
+        if not _check_duplicate_json(guid):
+            blob.download_to_filename(os.path.join(LOCAL_OCR_DUMP, blob.name))
+            _check_duplicate_json(guid)
+        else:
+            logger.warn('JSON of {} already dumped locally'.format(guid))
+
+def download_ocr(*guids, n_jobs=-1, logger=get_logger()):
+    thread_storage = threading.local()
+    logger.info('Downloading {} OCRed invoices'.format(len(guids)))
+    Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
+            (delayed(_download_ocr_file)(guid, thread_storage) for guid in tqdm(guids))

@@ -3,19 +3,22 @@ import logging
 
 __all__ = ['get_dir', 'get_logger']
 
+LOGPATH = os.path.expanduser('~/workspace/invoice/utils.log')
+
 def get_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
 
-def get_logger(logpath=None, level=logging.INFO):
+def get_logger(logpath=LOGPATH, level=logging.INFO):
     logger = logging.getLogger('datalogger')
     formatter = logging.Formatter('%(asctime)s:\t\t%(message)s')
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    if logpath is not None:
-        file_handler = logging.FileHandler(logpath)
+    if logpath is None:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+    else:
+        file_handler = logging.FileHandler(logpath, mode='w')
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
