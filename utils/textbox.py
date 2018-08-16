@@ -1,3 +1,4 @@
+from .configs import DATA_FOLDER
 from skimage import img_as_float32, img_as_ubyte
 from skimage.io import imread
 from matplotlib import patches, pyplot as plt
@@ -6,7 +7,7 @@ import numpy as np
 import json
 import os
 
-DATA_FOLDER = os.path.expanduser('~/workspace/invoice/data')
+__all__ = ['Anchor', 'BoundingBox', 'parse_ocr_json']
 REMOVAL_CHAR = ",;:.*-'\"i#"
 JOIN_CHAR = {'SPACE': ' ', 'SURE_SPACE': ' ', 'EOL_SURE_SPACE': '\t', 'LINE_BREAK': '\n', 'HYPHEN': '\t', 'EMPTY': ''}
 BOX_COLOR = cycle('bgrcmy')
