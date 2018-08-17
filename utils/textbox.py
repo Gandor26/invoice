@@ -141,6 +141,7 @@ class BoundingBox(object):
         if self.sub_boxes is not None:
             for box in self.sub_boxes:
                 box._recursive_rotate(angle)
+            self.sub_boxes.sort()
 
     def rotate(self, angle):
         if self.super_box is None:
