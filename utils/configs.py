@@ -3,8 +3,6 @@ import os
 
 DATA_FOLDER = get_dir(os.path.expanduser('~/workspace/invoice/data'))
 WAREHOUSE = get_dir(os.path.expanduser('~/workspace/invoice/warehouse'))
-LOCAL_OCR_DUMP = get_dir(os.path.join(DATA_FOLDER, 'ocr'))
-WARE_OCR_DUMP = get_dir(os.path.join(WAREHOUSE, 'ocr'))
 IMAGE_FORMAT = 'png'
 
 DB_NAME = 'invoice'

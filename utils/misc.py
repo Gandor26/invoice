@@ -3,7 +3,7 @@ import logging
 
 __all__ = ['get_dir', 'get_logger']
 
-LOGPATH = os.path.expanduser('~/workspace/invoice/utils.log')
+LOGPATH = os.path.expanduser('~/workspace/invoice/default.log')
 
 def get_dir(path):
     os.makedirs(path, exist_ok=True)

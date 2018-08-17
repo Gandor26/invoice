@@ -39,8 +39,8 @@ def _check_duplicate_img(guid, train, image_format):
         return False
 
 def _check_duplicate_json(guid):
-    data_path = os.path.join(LOCAL_OCR_DUMP, '{}.json'.format(guid))
-    ware_path = os.path.join(WARE_OCR_DUMP, 'ocr', '{}.json'.format(guid))
+    data_path = os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))
+    ware_path = os.path.join(WAREHOUSE, 'ocr', '{}_output-1-to-1.json'.format(guid))
     if os.path.exists(data_path):
         if not os.path.exists(ware_path):
             copy(data_path, ware_path)
@@ -105,8 +105,9 @@ def _download_ocr_file(guid, thread_storage):
         logger.error('Cannot find OCR output file of {}'.format(guid))
     else:
         blob = blobs[0]
+        ocr_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'ocr')), blob.name)
         if not _check_duplicate_json(guid):
-            blob.download_to_filename(os.path.join(LOCAL_OCR_DUMP, blob.name))
+            blob.download_to_filename(ocr_path)
             _check_duplicate_json(guid)
         else:
             logger.warn('JSON of {} already dumped locally'.format(guid))
