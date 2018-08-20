@@ -5,7 +5,7 @@ from joblib import Parallel, delayed
 __all__ = ['aggregate', 'ordered_lookup', 'get_top_vhosts', 'get_guids_by_vhost', 'get_guids_by_top_vendor', 'get_labels']
 
 def get_collection(train):
-    return TRAIN_COLLECTION if train else TEST_COLLECTION
+    return OVERALL_COLLECTION if train is None else TRAIN_COLLECTION if train else TEST_COLLECTION
 
 def with_temp_client(func):
     def func_with_temp_client(*args, client=None, **kwargs):
