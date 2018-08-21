@@ -6,9 +6,12 @@ from glob import glob
 from skimage.io import imread, imsave
 from skimage.transform import resize
 from joblib import Parallel, delayed
+from tqdm import tqdm
 import pickle as pk
 import threading
 import os
+
+__all__ = ['build_dataset']
 
 def _process_single_sample(guid, label, train, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
@@ -30,4 +33,5 @@ def build_dataset(data_folder=DATA_FOLDER, train=True):
     guids = list(map(lambda s: os.path.split(f)[-1].split(os.path.extsep)[0], files))
     labels = list(map(lambda t: '_'.join(t), get_labels(*guids, vendor=True, flatten=True)))
     storage = threading.local()
-    Parallel(n_jobs=-1, backend='threading', verbose=False)
+    Parallel(n_jobs=-1, backend='threading', verbose=False)(delayed(_process_single_sample)(guid, label, train, storage)
+            for guid, label in tqdm(zip(guids, labels), total=len(guids)))
