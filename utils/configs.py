@@ -6,6 +6,7 @@ WAREHOUSE = get_dir(os.path.expanduser('~/workspace/invoice/warehouse'))
 IMAGE_FORMAT = 'png'
 
 DB_NAME = 'invoice'
+OVERALL_COLLECTION = 'invoice_details'
 TRAIN_COLLECTION = 'train_set'
 TEST_COLLECTION = 'test_set'
 GUID_FIELD_NAME = 'attachment_guid'
