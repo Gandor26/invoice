@@ -1,15 +1,16 @@
-from .configs import DATA_FOLDER
+from .configs import DATA_FOLDER, IMAGE_FORMAT
 from skimage import img_as_float32, img_as_ubyte
 from skimage.io import imread
 from matplotlib import patches, pyplot as plt
 from itertools import cycle
+import pickle as pk
 import numpy as np
 import json
 import os
 
 __all__ = ['Anchor', 'BoundingBox', 'parse_ocr_json']
 REMOVAL_CHAR = ",;:.*-'\"i#"
-JOIN_CHAR = {'SPACE': ' ', 'SURE_SPACE': ' ', 'EOL_SURE_SPACE': '\t', 'LINE_BREAK': '\n', 'HYPHEN': '\t', 'EMPTY': ''}
+JOIN_CHAR = {'SPACE': ' ', 'SURE_SPACE': ' ', 'EOL_SURE_SPACE': '\n', 'LINE_BREAK': '\n', 'HYPHEN': ' ', 'EMPTY': ''}
 BOX_COLOR = cycle('bgrcmy')
 
 class Anchor(object):
@@ -76,8 +77,9 @@ class BoundingBox(object):
     def __init__(self, *args, **kwargs):
         self.super_box = None
         self.sub_boxes = None
-        self.image = kwargs.get('image')
+        self.guid = kwargs.get('guid')
         self.text = kwargs.get('text')
+        self.train = kwargs.get('train')
         self.anchor = Anchor.make(*args)
 
     def __lt__(self, box):
@@ -99,30 +101,32 @@ class BoundingBox(object):
 
     @classmethod
     def aggregate(cls, *boxes, vertices=None):
-        image = None
+        guid = None
         text = ''
         vertices = []
         for box in boxes:
-            if not ((image is None) or (box.image is image)):
+            if not ((guid is None) or (box.guid == guid)):
                 raise ValueError('The given boxes do not belong to the same document')
-            if image is None:
-                image = box.image
+            if guid is None:
+                guid = box.guid
             text += box.text
             vertices.extend([{'x':box.anchor.x, 'y':box.anchor.y}, {'x':box.anchor.xx, 'y':box.anchor.yy}])
-        super_box = BoundingBox(*vertices, image=image, text=text)
+        super_box = BoundingBox(*vertices, guid=guid, text=text, train=boxes[0].train)
         super_box.sub_boxes = sorted(boxes)
         for box in boxes:
             box.super_box = super_box
         return super_box
 
     def visualize(self, padding=1e-2, show_sub_boxes=False):
-        h, w = self.image.shape
+        image = imread(os.path.join(DATA_FOLDER, 'img', 'train' if self.train else 'test', '{}.{}'.format(self.guid, IMAGE_FORMAT)),
+                as_gray=True)
+        h, w = image.shape
         padding_pixels = int(min(h, w)*padding)
         upper = max(0, int(h*self.anchor.y)-padding_pixels)
         lower = min(h, int(h*self.anchor.yy)+padding_pixels)
         left = max(0, int(w*self.anchor.x)-padding_pixels)
         right = min(w, int(w*self.anchor.xx)+padding_pixels)
-        sub_image = self.image[upper:lower, left:right]
+        sub_image = image[upper:lower, left:right]
         fig, ax = plt.subplots(1, figsize=(20,20))
         ax.imshow(sub_image, cmap='gray')
         if (show_sub_boxes) and (self.sub_boxes is not None):
@@ -146,16 +150,16 @@ class BoundingBox(object):
     def rotate(self, angle):
         if self.super_box is None:
             self._recursive_rotate(angle)
-            new_image = np.rot90(self.image, (360+angle)%360//90)
-            self.image.resize(new_image.shape)
-            np.copyto(self.image, new_image)
+            image_path = os.path.join(DATA_FOLDER, 'img', 'train' if self.train else 'test', '{}.{}'.format(self.guid, IMAGE_FORMAT))
+            image = imread(image_path, as_gray=True)
+            new_image = np.rot90(image, (360+angle)%360//90)
+            imsave(image_path, new_image)
         else:
             self.super_box.rotate(angle)
 
-def parse_ocr_json(guid):
+def parse_ocr_json(guid, train=True):
     with open(os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))) as f:
         parsed = json.load(f)
-    image = img_as_float32(imread(os.path.join(DATA_FOLDER, 'img', 'train', '{}.png'.format(guid))))
     for page in parsed['responses'][0]['fullTextAnnotation']['pages']:
         block_boxes = []
         for block in page['blocks']:
@@ -167,7 +171,7 @@ def parse_ocr_json(guid):
                     detected_break = JOIN_CHAR[word['symbols'][-1].get('property',{}).get('detectedBreak',{}).get('type', 'EMPTY')]
                     word_text += detected_break
                     try:
-                        word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], image=image, text=word_text))
+                        word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], guid=guid, text=word_text, train=train))
                     except KeyError:
                         continue
                 if len(word_boxes) > 0:
@@ -176,11 +180,13 @@ def parse_ocr_json(guid):
                     if len(purified) == 0:
                         continue
                     else:
-                        paragraph_boxes.append(BoundingBox.aggregate(*word_boxes))
+                        paragraph_boxes.append(paragraph_box)
                 else:
                     continue
             if len(paragraph_boxes) > 0:
-                block_boxes.append(BoundingBox.aggregate(*paragraph_boxes))
+                block_box = BoundingBox.aggregate(*paragraph_boxes)
+                if len(block_box.text) > 2:
+                    block_boxes.append(BoundingBox.aggregate(*paragraph_boxes))
             else:
                 continue
         if len(block_boxes) > 0:

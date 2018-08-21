@@ -19,3 +19,4 @@ GOOGLE_INPUT_BUCKET = 'af-ml-invoice-training-set'
 GOOGLE_OUTPUT_BUCKET = 'xiaoyong-ocr-bucket'
 GOOGLE_MIME_TYPE = 'application/pdf'
 
+SCALED_IMAGE_SIZE = 224
