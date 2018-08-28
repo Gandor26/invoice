@@ -90,7 +90,7 @@ def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=True, ima
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
     Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
             (delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)\
-            for guid, account in tqdm(zip(guids, get_labels(*guids, account=True, flatten=True)), total=len(guids)))
+            for guid, account in tqdm(zip(guids, get_labels(*guids, account=True, train=train, flatten=True)), total=len(guids)))
 
 def _download_ocr_file(guid, thread_storage):
     if getattr(thread_storage, 'client', None) is None:
