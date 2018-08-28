@@ -19,7 +19,7 @@ def with_temp_client(func):
             return func(*args, client=client, **kwargs)
     return func_with_temp_client
 
-def lookup_by_chunks(chunk_size=0, n_jobs=8):
+def lookup_by_chunks(chunk_size=0, n_jobs=-1):
     def func_wrapper(func):
         def func_by_chunks(*args, **kwargs):
             if chunk_size <= 0 or chunk_size > len(args):
@@ -97,4 +97,20 @@ def get_labels(*guids, client=None, account=False, vendor=False, prop=False, tot
         project_fields.append(TOTAL_FIELD_NAME)
     results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
             project_fields=project_fields, flatten=flatten)
+    return results
+
+@lookup_by_chunks(chunk_size=100000)
+def get_property_address(*guids, client=None, db=DB_NAME, train=True):
+    project_fields = PROPERTY_ADDRESS_FIELD_NAMES
+    results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
+            project_fields=project_fields, flatten=True)
+    results = [{'name':d[0], 'address': ' '.join(d[1:])} for d in results]
+    return results
+
+@lookup_by_chunks(chunk_size=100000)
+def get_vendor_name(*guids, client=None, db=DB_NAME, train=True):
+    project_fields = VENDOR_NAME_FIELD_NAMES
+    results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
+            project_fields=project_fields, flatten=True)
+    results = [d[2] if d[3] == 't' else ' '.join(d[:2]) for d in results]
     return results

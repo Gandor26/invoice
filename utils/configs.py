@@ -13,7 +13,9 @@ GUID_FIELD_NAME = 'attachment_guid'
 VHOST_FIELD_NAME = 'vhost'
 ACCOUNT_FIELD_NAME = 'account_name'
 VENDOR_FIELD_NAME = 'vendor_id'
+VENDOR_NAME_FIELD_NAMES = ['first_name', 'last_name', 'company_name', 'uses_company_name']
 PROPERTY_FIELD_NAME = 'property_id'
+PROPERTY_ADDRESS_FIELD_NAMES = ['property_name', 'property_address1', 'property_address2', 'property_city', 'property_state', 'property_postal_code']
 TOTAL_FIELD_NAME = 'total'
 
 GOOGLE_INPUT_BUCKET = 'af-ml-invoice-training-set'
