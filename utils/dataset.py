@@ -24,14 +24,14 @@ def _process_single_sample(guid, label, train, thread_storage):
         thread_storage.logger.warn('Something wrong in parsing OCR results of {}. Skipping'.format(guid))
         return
     dataset_dir = get_dir(os.path.join(DATA_FOLDER, 'set', 'train' if train else 'test', label))
-    imsave(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)))
+    imsave(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)), resized_image)
     with open(os.path.join(dataset_dir, '{}.pkl'.format(guid)), 'wb') as f:
         pk.dump(box, f)
 
 def build_dataset(train=True):
     files = glob(os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test', '*.{}'.format(IMAGE_FORMAT)))
     guids = list(map(lambda s: os.path.split(f)[-1].split(os.path.extsep)[0], files))
-    labels = list(map(lambda t: '_'.join(t), get_labels(*guids, vendor=True, flatten=True)))
+    labels = list(map(lambda t: '{}_{}'.join(t[0], t[1]), get_labels(*guids, vendor=True, flatten=True)))
     storage = threading.local()
     Parallel(n_jobs=-1, backend='threading', verbose=False)(delayed(_process_single_sample)(guid, label, train, storage)
             for guid, label in tqdm(zip(guids, labels), total=len(guids)))
