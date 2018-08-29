@@ -1,5 +1,5 @@
 from .configs import *
-from .database import get_labels
+from .database import get_labels, get_src
 from .misc import get_dir, get_logger
 from google.cloud import storage as gs
 from joblib import Parallel, delayed
@@ -12,9 +12,9 @@ import os
 
 __all__ = ['download_and_convert', 'download_ocr']
 
-def _check_duplicate_pdf(guid, train):
-    data_path = os.path.join(DATA_FOLDER, 'pdf', 'train' if train else 'test', '{}.pdf'.format(guid))
-    ware_path = os.path.join(WAREHOUSE, 'pdf', 'train' if train else 'test', '{}.pdf'.format(guid))
+def _check_duplicate_pdf(guid):
+    data_path = os.path.join(DATA_FOLDER, 'pdf', '{}.pdf'.format(guid))
+    ware_path = os.path.join(WAREHOUSE, 'pdf', '{}.pdf'.format(guid))
     if os.path.exists(data_path):
         if not os.path.exists(ware_path):
             copy(data_path, ware_path)
@@ -25,9 +25,9 @@ def _check_duplicate_pdf(guid, train):
     else:
         return False
 
-def _check_duplicate_img(guid, train, image_format):
-    data_path = os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test', '{}.{}'.format(guid, image_format))
-    ware_path = os.path.join(WAREHOUSE, 'img', 'train' if train else 'test', '{}.{}'.format(guid, image_format))
+def _check_duplicate_img(guid, image_format):
+    data_path = os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, image_format))
+    ware_path = os.path.join(WAREHOUSE, 'img', '{}.{}'.format(guid, image_format))
     if os.path.exists(data_path):
         if not os.path.exists(ware_path):
             copy(data_path, ware_path)
@@ -36,7 +36,7 @@ def _check_duplicate_img(guid, train, image_format):
         copy(ware_path, data_path)
         return True
     else:
-        return False
+        return
 
 def _check_duplicate_json(guid):
     data_path = os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))
@@ -56,7 +56,7 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
         thread_storage.s3client = boto3.client('s3', 'us-east-1')
     if getattr(thread_storage, 'logger', None) is None:
         thread_storage.logger = get_logger()
-    bucket_name = 'appfolio-ml-invoice-{}-set'.format('training' if train else 'testing')
+    bucket_name = AWS_TRAINING_BUCKET if train else AWS_TEST_BUKCET
     fname_prefix = 'attachmentsParallelized/{}/attachments/{}/original'.format(account, guid)
     objects = thread_storage.s3client.list_objects(Bucket=bucket_name, Prefix=fname_prefix).get('Contents', None)
     if objects is None:
@@ -69,28 +69,33 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
         return
     else:
         key = objects[0]['Key']
-    pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf', 'train' if train else 'test')), '{}.pdf'.format(guid))
-    img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img', 'train' if train else 'test')), '{}.{}'.format(guid, image_format))
-    if not _check_duplicate_pdf(guid, train):
+    pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf')), '{}.pdf'.format(guid))
+    img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img')), '{}.{}'.format(guid, image_format))
+    if not _check_duplicate_pdf(guid):
         thread_storage.s3client.download_file(bucket_name, key, pdf_path)
-        _check_duplicate_pdf(guid, train)
+        _check_duplicate_pdf(guid)
     else:
         thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     gs_device = '{}gray'.format(image_format)
     command = 'gs -q -dNOPAUSE -sDEVICE={} -r300 -dINTERPOLATE -dFirstPage=1 -dLastPage=1 -dGraphicsAlphaBits=4 -dPDFFitPage -dUseCropBox\
             -sOutputFile={} -c 30000000 setvmthreshold -f {} -c quit'
-    if not _check_duplicate_img(guid, train, image_format):
+    if not _check_duplicate_img(guid, image_format):
         os.system(command.format(gs_device, img_path, pdf_path))
-        _check_duplicate_img(guid, train, image_format)
+        _check_duplicate_img(guid, image_format)
     else:
         thread_storage.logger.warn('Image of {} already dumped locally'.format(guid))
 
-def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=True, image_format=IMAGE_FORMAT):
+def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=None, image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
+    accounts = get_labels(*guids, account=True, train=train, flatten=True)
+    if train is not None:
+        src = [train] * len(guids)
+    else:
+        src = get_src(*guids)
     Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
             (delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)\
-            for guid, account in tqdm(zip(guids, get_labels(*guids, account=True, train=train, flatten=True)), total=len(guids)))
+            for guid, account, train in tqdm(zip(guids, accounts, src), total=len(guids)))
 
 def _download_ocr_file(guid, thread_storage):
     if getattr(thread_storage, 'client', None) is None:

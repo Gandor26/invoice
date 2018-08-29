@@ -33,11 +33,11 @@ def lookup_by_chunks(chunk_size=0, n_jobs=-1):
     return func_wrapper
 
 @with_temp_client
-def aggregate(*pips, client=None, db=DB_NAME, train=True):
+def aggregate(*pips, client=None, db=DB_NAME, train=None):
     collection = client[db][get_collection(train)]
     return list(collection.aggregate(list(pips), allowDiskUse=True))
 
-def ordered_lookup(field_name, *field_values, client=None, db=DB_NAME, train=True, project_fields=None, flatten=False):
+def ordered_lookup(field_name, *field_values, client=None, db=DB_NAME, train=None, project_fields=None, flatten=False):
     if project_fields is None:
         cursor =[{field_name:v} for v in field_values]
         project_fields = [field_name]
@@ -55,7 +55,7 @@ def ordered_lookup(field_name, *field_values, client=None, db=DB_NAME, train=Tru
         results = list(cursor)
     return results
 
-def get_top_vhosts(top_n=None, client=None, db=DB_NAME, train=True):
+def get_top_vhosts(top_n=None, client=None, db=DB_NAME, train=None):
     pipeline = [{'$group':{'_id':'$vhost', 'count':{'$sum':1}}},
             {'$sort':{'count':-1}}]
     if top_n is not None:
@@ -63,7 +63,7 @@ def get_top_vhosts(top_n=None, client=None, db=DB_NAME, train=True):
     results = [r['_id'] for r in aggregate(*pipeline, client=client, db=db, train=train)]
     return results
 
-def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=True):
+def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=None):
     match = {'$match': {'vhost':{'$in':vhosts}, 'num_properties':{'$lt':2}}}
     group = {'$group': {'_id':{'vhost':'$vhost', 'vendor':'$vendor_id'}, 'count':{'$sum':1}, 'guids':{'$push': '$attachment_guid'}}}
     limit = {'$match': {'count': {'$gt':least}}}
@@ -74,7 +74,7 @@ def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=True):
         guids.extend(r['guids'])
     return guids
 
-def get_guids_by_top_vendor(limit=100, client=None, db=DB_NAME, train=True):
+def get_guids_by_top_vendor(limit=100, client=None, db=DB_NAME, train=None):
     match = {'$match': {'num_properties':{'$lt':2}}}
     group = {'$group': {'_id':{'vhost':'$vhost', 'vendor':'$vendor_id'}, 'count':{'$sum':1}, 'guids':{'$push': '$attachment_guid'}}}
     limit = {'$limit': limit}
@@ -87,7 +87,7 @@ def get_guids_by_top_vendor(limit=100, client=None, db=DB_NAME, train=True):
     return guids
 
 @lookup_by_chunks(chunk_size=100000)
-def get_labels(*guids, client=None, account=False, vendor=False, prop=False, total=False, db=DB_NAME, train=True, flatten=False):
+def get_labels(*guids, client=None, account=False, vendor=False, prop=False, total=False, db=DB_NAME, train=None, flatten=False):
     project_fields = [ACCOUNT_FIELD_NAME] if account else [VHOST_FIELD_NAME]
     if vendor:
         project_fields.append(VENDOR_FIELD_NAME)
@@ -100,7 +100,17 @@ def get_labels(*guids, client=None, account=False, vendor=False, prop=False, tot
     return results
 
 @lookup_by_chunks(chunk_size=100000)
-def get_property_address(*guids, client=None, db=DB_NAME, train=True):
+def get_src(*guids, client=None, db=DB_NAME):
+    '''
+        return a list of boolean, where True indicates the guid is in training set
+        and False in test set
+    '''
+    results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=None,
+            project_fields=[DATASET_FIELD_NAME], flatten=True)
+    return [r=='training' for r in results]
+
+@lookup_by_chunks(chunk_size=100000)
+def get_property_address(*guids, client=None, db=DB_NAME, train=None):
     project_fields = PROPERTY_ADDRESS_FIELD_NAMES
     results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
             project_fields=project_fields, flatten=True)
@@ -108,7 +118,7 @@ def get_property_address(*guids, client=None, db=DB_NAME, train=True):
     return results
 
 @lookup_by_chunks(chunk_size=100000)
-def get_vendor_name(*guids, client=None, db=DB_NAME, train=True):
+def get_vendor_name(*guids, client=None, db=DB_NAME, train=None):
     project_fields = VENDOR_NAME_FIELD_NAMES
     results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
             project_fields=project_fields, flatten=True)
