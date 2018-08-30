@@ -19,7 +19,7 @@ def _process_single_sample(guid, label, train, image_size, thread_storage):
     try:
        box = parse_ocr_json(guid)
        original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=True)
-       resized_image = resize(original_image, (image_size, image_size), mode='constant', cval=1.0, anti_aliasing=True)
+       resized_image = resize(original_image, (image_size, image_size), mode='edge', anti_aliasing=True)
     except:
         thread_storage.logger.warn('Something went wrong in parsing OCR results of {}. Skipping'.format(guid))
         return
@@ -33,7 +33,7 @@ def _process_single_image(guid, label, train, image_size, thread_storage):
         thread_storage.logger = get_logger()
     try:
         original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=True)
-        resized_image = resize(original_image, (image_size, image_size), mode='constant', cval=1.0, anti_aliasing=True)
+        resized_image = resize(original_image, (image_size, image_size), mode='edge', anti_aliasing=True)
     except:
         thread_storage.logger.warn('Something went wrong in processing {}. Skipping'.format(guid))
         return

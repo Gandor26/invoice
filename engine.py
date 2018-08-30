@@ -11,10 +11,10 @@ from utils import get_dir
 
 class Engine(object):
     def __init__(self, args):
-        super(Engine, self).__init__()
         data_dir = os.path.expanduser(args.data_dir)
         train_dir = os.path.join(args.data_dir, 'train')
         valid_dir = os.path.join(args.data_dir, 'valid')
+        tc.set_default_dtype(tc.double)
         self.train_set = Dataset(train_dir, args.cuda)
         self.valid_set = Dataset(valid_dir, args.cuda)
         self.train_loader = DataLoader(self.train_set, args.batch_size, shuffle=True)

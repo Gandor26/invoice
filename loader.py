@@ -1,6 +1,6 @@
 from torchvision.datasets import DatasetFolder
 from sklearn.preprocessing import LabelEncoder as BaseLE
-from skimage.util import img_as_float32, pad, crop, random_noise
+from skimage.util import img_as_float, pad, crop, random_noise
 from skimage.transform import resize
 from skimage.io import imread
 from glob import glob
@@ -10,7 +10,7 @@ import torch as tc
 import os
 
 DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
-DEFAULT_IMAGE_LOADER = lambda path: img_as_float32(imread(path, as_gray=True))
+DEFAULT_IMAGE_LOADER = lambda path: img_as_float(imread(path, as_gray=True))
 
 class RandomMargin(object):
     def __init__(self, seed=42, max_margin=5):
@@ -78,7 +78,7 @@ class ImageDataset(DatasetFolder):
         self.device = 'cuda' if cuda else 'cpu'
         self.labels = LabelEncoder().fit(list(map(lambda e:e.name, filter(lambda e: e.is_dir() and not e.name.startswith('.'), os.scandir(self.root)))))
         self.samples = [(path, cls) for path in glob(os.path.join(self.root, cls, '*.{}'.format(ext))) for cls in self.labels.classes_]
-        self.transform = GrayscaleToTensor(device=self.device, dtype=tc.float)
+        self.transform = GrayscaleToTensor(device=self.device, dtype=tc.double)
         self.target_transform = ToTensor(device=self.device, dtype=tc.long, transform=self.labels.transform)
 
 class BalancedImageDataset(ImageDataset):
@@ -98,5 +98,5 @@ class BalancedImageDataset(ImageDataset):
                 self.samples.extend([(f, cls) for f in np.random.choice(files, self.num_sample_per_class, replace=False)])
             else:
                 self.samples.extend([(f, cls) for f in files])
-        self.transform = Compose(RandomMargin(max_margin=8), GrayscaleToTensor(device=self.device, dtype=tc.float))
+        self.transform = Compose(RandomMargin(max_margin=8), GrayscaleToTensor(device=self.device, dtype=tc.double))
         self.target_transform = ToTensor(device=self.device, dtype=tc.long)
