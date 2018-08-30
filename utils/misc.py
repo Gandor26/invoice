@@ -9,6 +9,10 @@ def get_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
 
+def clean_log_file(logpath=LOGPATH):
+    with open(logpath, 'w'):
+        pass
+
 def get_logger(logpath=LOGPATH, level=logging.INFO):
     logger = logging.getLogger('datalogger')
     formatter = logging.Formatter('%(asctime)s:\t\t%(message)s')
@@ -18,7 +22,7 @@ def get_logger(logpath=LOGPATH, level=logging.INFO):
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     else:
-        file_handler = logging.FileHandler(logpath, mode='w')
+        file_handler = logging.FileHandler(logpath)
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

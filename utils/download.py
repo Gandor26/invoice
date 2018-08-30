@@ -1,5 +1,5 @@
 from .configs import *
-from .database import get_labels, get_src
+from .database import get_labels, get_dataset
 from .misc import get_dir, get_logger
 from google.cloud import storage as gs
 from joblib import Parallel, delayed
@@ -85,17 +85,14 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
     else:
         thread_storage.logger.warn('Image of {} already dumped locally'.format(guid))
 
-def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), train=None, image_format=IMAGE_FORMAT):
+def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
-    accounts = get_labels(*guids, account=True, train=train, flatten=True)
-    if train is not None:
-        src = [train] * len(guids)
-    else:
-        src = get_src(*guids)
+    accounts = get_labels(*guids, account=True, train=None, flatten=True)
+    train_flags = get_dataset(*guids)
     Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
             (delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)\
-            for guid, account, train in tqdm(zip(guids, accounts, src), total=len(guids)))
+            for guid, account, train in tqdm(zip(guids, accounts, train_flags), total=len(guids)))
 
 def _download_ocr_file(guid, thread_storage):
     if getattr(thread_storage, 'client', None) is None:

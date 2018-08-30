@@ -2,7 +2,8 @@ from .configs import *
 import pymongo as mg
 from joblib import Parallel, delayed
 
-__all__ = ['aggregate', 'ordered_lookup', 'get_top_vhosts', 'get_guids_by_vhost', 'get_guids_by_top_vendor', 'get_labels']
+__all__ = ['aggregate', 'ordered_lookup', 'get_top_vhosts', 'get_guids_by_vhost', 'get_guids_by_top_vendor', 'get_labels', 'get_dataset',
+        'get_property_address', 'get_vendor_name']
 
 def get_collection(train):
     return OVERALL_COLLECTION if train is None else TRAIN_COLLECTION if train else TEST_COLLECTION
@@ -63,10 +64,10 @@ def get_top_vhosts(top_n=None, client=None, db=DB_NAME, train=None):
     results = [r['_id'] for r in aggregate(*pipeline, client=client, db=db, train=train)]
     return results
 
-def get_guids_by_vhost(*vhosts, least=0, client=None, db=DB_NAME, train=None):
+def get_guids_by_vhost(*vhosts, at_least=1, client=None, db=DB_NAME, train=None):
     match = {'$match': {'vhost':{'$in':vhosts}, 'num_properties':{'$lt':2}}}
     group = {'$group': {'_id':{'vhost':'$vhost', 'vendor':'$vendor_id'}, 'count':{'$sum':1}, 'guids':{'$push': '$attachment_guid'}}}
-    limit = {'$match': {'count': {'$gt':least}}}
+    limit = {'$match': {'count': {'$gte':at_least}}}
     proj = {'$project': {'_id':0, 'guids':1}}
     pipeline = [match, group, limit, proj]
     guids = []
@@ -87,7 +88,7 @@ def get_guids_by_top_vendor(limit=100, client=None, db=DB_NAME, train=None):
     return guids
 
 @lookup_by_chunks(chunk_size=100000)
-def get_labels(*guids, client=None, account=False, vendor=False, prop=False, total=False, db=DB_NAME, train=None, flatten=False):
+def get_labels(*guids, account=False, vendor=False, prop=False, total=False, client=None, db=DB_NAME, train=None, flatten=False):
     project_fields = [ACCOUNT_FIELD_NAME] if account else [VHOST_FIELD_NAME]
     if vendor:
         project_fields.append(VENDOR_FIELD_NAME)
@@ -100,13 +101,12 @@ def get_labels(*guids, client=None, account=False, vendor=False, prop=False, tot
     return results
 
 @lookup_by_chunks(chunk_size=100000)
-def get_src(*guids, client=None, db=DB_NAME):
-    '''
-        return a list of boolean, where True indicates the guid is in training set
-        and False in test set
-    '''
-    results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=None,
-            project_fields=[DATASET_FIELD_NAME], flatten=True)
+def get_dataset(*guids, client=None, db=DB_NAME):
+    try:
+        results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=None,
+                project_fields=['dataset'], flatten=True)
+    except KeyError:
+        raise ValueError('Some guids do not belong to either training set or test set and cannot be downloaded')
     return [r=='training' for r in results]
 
 @lookup_by_chunks(chunk_size=100000)
@@ -114,7 +114,7 @@ def get_property_address(*guids, client=None, db=DB_NAME, train=None):
     project_fields = PROPERTY_ADDRESS_FIELD_NAMES
     results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
             project_fields=project_fields, flatten=True)
-    results = [{'name':d[0], 'address': ' '.join(d[1:])} for d in results]
+    results = [{'name':d[0], 'address': ' '.join([str(s) for s in d[1:]])} for d in results]
     return results
 
 @lookup_by_chunks(chunk_size=100000)

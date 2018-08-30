@@ -79,7 +79,6 @@ class BoundingBox(object):
         self.sub_boxes = None
         self.guid = kwargs.get('guid')
         self.text = kwargs.get('text')
-        self.train = kwargs.get('train')
         self.anchor = Anchor.make(*args)
 
     def __lt__(self, box):
@@ -111,14 +110,14 @@ class BoundingBox(object):
                 guid = box.guid
             text += box.text
             vertices.extend([{'x':box.anchor.x, 'y':box.anchor.y}, {'x':box.anchor.xx, 'y':box.anchor.yy}])
-        super_box = BoundingBox(*vertices, guid=guid, text=text, train=boxes[0].train)
+        super_box = BoundingBox(*vertices, guid=guid, text=text)
         super_box.sub_boxes = sorted(boxes)
         for box in boxes:
             box.super_box = super_box
         return super_box
 
     def visualize(self, padding=1e-2, show_sub_boxes=False):
-        image = imread(os.path.join(DATA_FOLDER, 'img', 'train' if self.train else 'test', '{}.{}'.format(self.guid, IMAGE_FORMAT)),
+        image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(self.guid, IMAGE_FORMAT)),
                 as_gray=True)
         h, w = image.shape
         padding_pixels = int(min(h, w)*padding)
@@ -150,14 +149,14 @@ class BoundingBox(object):
     def rotate(self, angle):
         if self.super_box is None:
             self._recursive_rotate(angle)
-            image_path = os.path.join(DATA_FOLDER, 'img', 'train' if self.train else 'test', '{}.{}'.format(self.guid, IMAGE_FORMAT))
+            image_path = os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(self.guid, IMAGE_FORMAT))
             image = imread(image_path, as_gray=True)
             new_image = np.rot90(image, (360+angle)%360//90)
             imsave(image_path, new_image)
         else:
             self.super_box.rotate(angle)
 
-def parse_ocr_json(guid, train=True):
+def parse_ocr_json(guid):
     with open(os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))) as f:
         parsed = json.load(f)
     for page in parsed['responses'][0]['fullTextAnnotation']['pages']:
@@ -171,7 +170,7 @@ def parse_ocr_json(guid, train=True):
                     detected_break = JOIN_CHAR[word['symbols'][-1].get('property',{}).get('detectedBreak',{}).get('type', 'EMPTY')]
                     word_text += detected_break
                     try:
-                        word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], guid=guid, text=word_text, train=train))
+                        word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], guid=guid, text=word_text))
                     except KeyError:
                         continue
                 if len(word_boxes) > 0:
