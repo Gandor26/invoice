@@ -14,8 +14,8 @@ def make_dataset(*vhosts, seed, size=None):
     idx_train, idx_test = next(sampler.split(guids, labels))
     guids_and_labels_train = [(guids[i], labels[i]) for i in idx_train]
     guids_and_labels_test = [(guids[i], labels[i]) for i in idx_test]
-    build_dataset(*guids_and_labels_train[:10], train=True, image_size=size)
-    build_dataset(*guids_and_labels_test[:10], train=False, image_size=size)
+    build_dataset(*guids_and_labels_train, train=True, image_size=size)
+    build_dataset(*guids_and_labels_test, train=False, image_size=size)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
