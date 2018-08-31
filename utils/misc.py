@@ -1,7 +1,7 @@
 import os
 import logging
 
-__all__ = ['get_dir', 'get_logger']
+__all__ = ['get_dir', 'get_logger', 'clean_log_file']
 
 LOGPATH = os.path.expanduser('~/workspace/invoice/default.log')
 
