@@ -1,7 +1,7 @@
 import os
 import logging
 
-__all__ = ['get_dir', 'get_logger', 'clean_log_file']
+__all__ = ['get_dir', 'get_logger', 'clear_log_file']
 
 LOGPATH = os.path.expanduser('~/workspace/invoice/default.log')
 
@@ -9,7 +9,7 @@ def get_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
 
-def clean_log_file(logpath=LOGPATH):
+def clear_log_file(logpath=LOGPATH):
     with open(logpath, 'w'):
         pass
 
