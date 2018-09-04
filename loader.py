@@ -79,7 +79,7 @@ class ImageDataset(DatasetFolder):
         self.labels = LabelEncoder().fit(list(map(lambda e:e.name, filter(lambda e: e.is_dir() and not e.name.startswith('.'), os.scandir(self.root)))))
         self.samples = [(path, cls) for path in glob(os.path.join(self.root, cls, '*.{}'.format(ext))) for cls in self.labels.classes_]
         self.transform = GrayscaleToTensor(device=self.device, dtype=tc.double)
-        self.target_transform = ToTensor(device=self.device, dtype=tc.long, transform=self.labels.transform)
+        self.target_transform = Compose(self.labels.transform, ToTensor(device=self.device, dtype=tc.long, transform=self.labels.transform))
 
 class BalancedImageDataset(ImageDataset):
     def __init__(self, root=DEFAULT_ROOT_DIR, ext=IMAGE_FORMAT, mode='train', loader=DEFAULT_IMAGE_LOADER, cuda=True,
@@ -99,4 +99,6 @@ class BalancedImageDataset(ImageDataset):
             else:
                 self.samples.extend([(f, cls) for f in files])
         self.transform = Compose(RandomMargin(max_margin=8), GrayscaleToTensor(device=self.device, dtype=tc.double))
-        self.target_transform = ToTensor(device=self.device, dtype=tc.long)
+        self.target_transform = Compose(self.labels.transform, ToTensor(device=self.device, dtype=tc.long))
+
+Dataset = BalancedImageDataset

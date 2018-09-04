@@ -15,8 +15,8 @@ __all__ = ['google_pdf_ocr']
 
 
 def _check_duplicate(guid, storage_client):
-    local_path = os.path.join(LOCAL_OCR_DUMP, '{}_output-1-to-1.json'.format(guid))
-    ware_path = os.path.join(WARE_OCR_DUMP, '{}_output-1-to-1.json'.format(guid))
+    local_path = os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))
+    ware_path = os.path.join(WAREHOUSE, 'ocr', '{}_output-1-to-1.json'.format(guid))
     if os.path.exists(local_path):
         if not os.path.exists(ware_path):
             copy(local_path, ware_path)
