@@ -1,4 +1,4 @@
-from utils import get_top_vhosts, get_guids_by_vhost, get_labels, build_dataset
+from utils import get_top_vhosts, get_guids_by_vhost, get_labels, build_dataset, clear_log_file
 from sklearn.model_selection import StratifiedShuffleSplit as SSS
 from collections import Counter
 import argparse
@@ -18,6 +18,7 @@ def make_dataset(*vhosts, seed, size=None):
     build_dataset(*guids_and_labels_test, train=False, image_size=size)
 
 if __name__ == '__main__':
+    clear_log_file()
     parser = argparse.ArgumentParser()
     parser.add_argument('vhosts', nargs='+')
     parser.add_argument('--seed', type=int, default=42)
