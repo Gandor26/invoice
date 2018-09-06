@@ -52,38 +52,38 @@ def _check_duplicate_json(guid):
         return False
 
 def _download_and_convert(guid, account, train, thread_storage, image_format):
-    if getattr(thread_storage, 's3_client', None) is None:
-        thread_storage.s3client = boto3.client('s3', 'us-east-1')
     if getattr(thread_storage, 'logger', None) is None:
         thread_storage.logger = get_logger()
-    bucket_name = AWS_TRAINING_BUCKET if train else AWS_TEST_BUKCET
-    fname_prefix = 'attachmentsParallelized/{}/attachments/{}/original'.format(account, guid)
-    objects = thread_storage.s3client.list_objects(Bucket=bucket_name, Prefix=fname_prefix).get('Contents', None)
-    if objects is None:
-        #raise FileNotFoundError('Didn\'t find {} in {}'.format(guid, account))
-        thread_storage.logger.error('Didn\'t find {} in {}'.format(guid, account))
-        return
-    elif len(objects) > 1:
-        #raise RuntimeError('Expected one key to match prefix {}, but found {}'.format(fname_prefix, len(objects)))
-        thread_storage.logger.error('Expected one key to match prefix {}, but found {}'.format(fname_prefix, len(objects)))
-        return
+    if _check_duplicate_pdf(guid):
+        thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     else:
-        key = objects[0]['Key']
-    pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf')), '{}.pdf'.format(guid))
-    img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img')), '{}.{}'.format(guid, image_format))
-    if not _check_duplicate_pdf(guid):
+        if getattr(thread_storage, 's3_client', None) is None:
+            thread_storage.s3client = boto3.client('s3', 'us-east-1')
+        bucket_name = AWS_TRAINING_BUCKET if train else AWS_TEST_BUKCET
+        fname_prefix = 'attachmentsParallelized/{}/attachments/{}/original'.format(account, guid)
+        objects = thread_storage.s3client.list_objects(Bucket=bucket_name, Prefix=fname_prefix).get('Contents', None)
+        if objects is None:
+            #raise FileNotFoundError('Didn\'t find {} in {}'.format(guid, account))
+            thread_storage.logger.error('Didn\'t find {} in {}'.format(guid, account))
+            return
+        elif len(objects) > 1:
+            #raise RuntimeError('Expected one key to match prefix {}, but found {}'.format(fname_prefix, len(objects)))
+            thread_storage.logger.error('Expected one key to match prefix {}, but found {}'.format(fname_prefix, len(objects)))
+            return
+        else:
+            key = objects[0]['Key']
+        pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf')), '{}.pdf'.format(guid))
+        img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img')), '{}.{}'.format(guid, image_format))
         thread_storage.s3client.download_file(bucket_name, key, pdf_path)
         _check_duplicate_pdf(guid)
-    else:
-        thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     gs_device = '{}gray'.format(image_format)
     command = 'gs -q -dNOPAUSE -sDEVICE={} -r300 -dINTERPOLATE -dFirstPage=1 -dLastPage=1 -dGraphicsAlphaBits=4 -dPDFFitPage -dUseCropBox\
             -sOutputFile={} -c 30000000 setvmthreshold -f {} -c quit'
-    if not _check_duplicate_img(guid, image_format):
+    if  _check_duplicate_img(guid, image_format):
+        thread_storage.logger.warn('Image of {} already dumped locally'.format(guid))
+    else:
         os.system(command.format(gs_device, img_path, pdf_path))
         _check_duplicate_img(guid, image_format)
-    else:
-        thread_storage.logger.warn('Image of {} already dumped locally'.format(guid))
 
 def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
@@ -95,24 +95,24 @@ def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), image_format=IM
             for guid, account, train in tqdm(zip(guids, accounts, train_flags), total=len(guids)))
 
 def _download_ocr_file(guid, thread_storage):
-    if getattr(thread_storage, 'client', None) is None:
-        thread_storage.client = gs.Client()
-    client = thread_storage.client
     if getattr(thread_storage, 'logger', None) is None:
         thread_storage.logger = get_logger()
     logger = thread_storage.logger
-    dst_bucket = client.get_bucket(bucket_name=GOOGLE_OUTPUT_BUCKET)
-    blobs = list(dst_bucket.list_blobs(prefix=guid))
-    if len(blobs) < 1:
-        logger.error('Cannot find OCR output file of {}'.format(guid))
+    if _check_duplicate_json(guid):
+        logger.warn('JSON of {} already dumped locally'.format(guid))
     else:
-        blob = blobs[0]
-        ocr_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'ocr')), blob.name)
-        if not _check_duplicate_json(guid):
+        if getattr(thread_storage, 'client', None) is None:
+            thread_storage.client = gs.Client()
+        client = thread_storage.client
+        dst_bucket = client.get_bucket(bucket_name=GOOGLE_OUTPUT_BUCKET)
+        blobs = list(dst_bucket.list_blobs(prefix=guid))
+        if len(blobs) < 1:
+            logger.error('Cannot find OCR output file of {}'.format(guid))
+        else:
+            blob = blobs[0]
+            ocr_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'ocr')), blob.name)
             blob.download_to_filename(ocr_path)
             _check_duplicate_json(guid)
-        else:
-            logger.warn('JSON of {} already dumped locally'.format(guid))
 
 def download_ocr(*guids, n_jobs=-1, logger=get_logger()):
     thread_storage = threading.local()
