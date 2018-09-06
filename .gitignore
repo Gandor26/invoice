@@ -109,6 +109,7 @@ data/
 data*
 dump*
 warehouse/
+exp*
 
 # MacOS
 .DS_Store

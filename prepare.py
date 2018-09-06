@@ -1,7 +1,8 @@
 #! /usr/local/bin/python
 from utils import DATA_FOLDER
 from utils import get_top_vhosts, get_guids_by_vhost, get_labels
-from utils import download_and_convert, download_ocr, clear_log_file
+from utils import download_and_convert, download_ocr, clear_log_file, get_dir
+from utils import build_dataset
 from collections import defaultdict
 from numpy import random
 from glob import glob
@@ -18,7 +19,6 @@ def split_dataset(*vhosts, test_size, seed):
     stats = defaultdict(list)
     for guid, label in zip(guids, labels):
         stats[label].append(guid)
-    print(len(guids))
     train_set = defaultdict(list)
     test_set = defaultdict(list)
     for label in stats:
@@ -32,9 +32,9 @@ def split_dataset(*vhosts, test_size, seed):
                 test_set[label].append(stats[label][i])
             else:
                 train_set[label].append(stats[label][i])
-    with open(os.path.join(DATA_FOLDER, 'set', 'train.json'), 'w') as f:
+    with open(os.path.join(get_dir(os.path.join(DATA_FOLDER, 'set')), 'train.json'), 'w') as f:
         json.dump(train_set, f)
-    with open(os.path.join(DATA_FOLDER, 'set', 'test.json'), 'w') as f:
+    with open(os.path.join(get_dir(os.path.join(DATA_FOLDER, 'set')), 'test.json'), 'w') as f:
         json.dump(test_set, f)
     return train_set, test_set
 
@@ -93,8 +93,8 @@ def create_dataset_folder(train_set=None, test_set=None, image_size=None):
         except FileNotFoundError:
             print('No test split is created, quit..')
             return
-    guids_and_labels_train = [(g, l) for g in train_set[l] for l in train_set]
-    guids_and_labels_test = [(g, l) for g in test_set[l] for l in test_set]
+    guids_and_labels_train = [(g, l) for l in train_set for g in train_set[l]]
+    guids_and_labels_test = [(g, l) for l in test_set for g in test_set[l]]
     build_dataset(*guids_and_labels_train, train=True, image_size=image_size)
     build_dataset(*guids_and_labels_test, train=False, image_size=image_size)
 
