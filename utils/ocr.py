@@ -54,7 +54,7 @@ def _google_pdf_ocr(guid, account, thread_storage):
 
     src_uri = _locate_src_file(guid, account, storage_client)
     gcs_src = gv.types.GcsSource(uri=src_uri)
-    input_config = gv.types.InputConfig(gcs_source=gcs_src, mime_type=MIME_TYPE)
+    input_config = gv.types.InputConfig(gcs_source=gcs_src, mime_type='application/pdf')
     dst_uri = _locate_dst_file(guid)
     gcs_dst = gv.types.GcsDestination(uri=dst_uri)
     output_config = gv.types.OutputConfig(gcs_destination=gcs_dst, batch_size=1)

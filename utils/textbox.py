@@ -62,13 +62,13 @@ class Anchor(object):
         else:
             raise ValueError('Only multiples of 90 are supported')
 
-    def __lt__(self, anchor):
-        return (self.y < anchor.y) or ((self.y == anchor.y) and self.x < anchor.x)
-    def __le__(self, anchor):
-        return (self.y <= anchor.y) or ((self.y == anchor.y) and self.x <= anchor.x)
-    def __gt__(self, anchor):
-        return (self.y > anchor.y) or ((self.y == anchor.y) and self.x > anchor.x)
-    def __ge__(self, anchor):
+    #def __lt__(self, anchor):
+    #    return (self.y < anchor.y) or ((self.y == anchor.y) and self.x < anchor.x)
+    #def __le__(self, anchor):
+    #    return (self.y <= anchor.y) or ((self.y == anchor.y) and self.x <= anchor.x)
+    #def __gt__(self, anchor):
+    #    return (self.y > anchor.y) or ((self.y == anchor.y) and self.x > anchor.x)
+    #def __ge__(self, anchor):
         return (self.y >= anchor.y) or ((self.y == anchor.y) and self.x >= anchor.x)
     def __repr__(self):
         return '({:.6f}, {:.6f}), width={:.6f}, height={:.6f}'.format(self.x, self.y, self.w, self.h)
@@ -81,14 +81,14 @@ class BoundingBox(object):
         self.text = kwargs.get('text')
         self.anchor = Anchor.make(*args)
 
-    def __lt__(self, box):
-        return self.anchor < box.anchor
-    def __gt__(self, box):
-        return self.anchor > box.anchor
-    def __le__(self, box):
-        return self.anchor <= box.anchor
-    def __ge__(self, box):
-        return self.anchor >= box.anchor
+    #def __lt__(self, box):
+    #    return self.anchor < box.anchor
+    #def __gt__(self, box):
+    #    return self.anchor > box.anchor
+    #def __le__(self, box):
+    #    return self.anchor <= box.anchor
+    #def __ge__(self, box):
+    #    return self.anchor >= box.anchor
     def __len__(self):
         return len(self.sub_boxes)
     def __getitem__(self, index):
@@ -111,7 +111,8 @@ class BoundingBox(object):
             text += box.text
             vertices.extend([{'x':box.anchor.x, 'y':box.anchor.y}, {'x':box.anchor.xx, 'y':box.anchor.yy}])
         super_box = BoundingBox(*vertices, guid=guid, text=text)
-        super_box.sub_boxes = sorted(boxes)
+        #super_box.sub_boxes = sorted(boxes)
+        super_box.sub_boxes = boxes
         for box in boxes:
             box.super_box = super_box
         return super_box
@@ -144,7 +145,7 @@ class BoundingBox(object):
         if self.sub_boxes is not None:
             for box in self.sub_boxes:
                 box._recursive_rotate(angle)
-            self.sub_boxes.sort()
+        #    self.sub_boxes.sort()
 
     def rotate(self, angle):
         if self.super_box is None:
@@ -159,38 +160,38 @@ class BoundingBox(object):
 def parse_ocr_json(guid):
     with open(os.path.join(DATA_FOLDER, 'ocr', '{}_output-1-to-1.json'.format(guid))) as f:
         parsed = json.load(f)
-    for page in parsed['responses'][0]['fullTextAnnotation']['pages']:
-        block_boxes = []
-        for block in page['blocks']:
-            paragraph_boxes = []
-            for paragraph in block['paragraphs']:
-                word_boxes = []
-                for word in paragraph['words']:
-                    word_text = ''.join(symbol['text'] for symbol in word['symbols'])
-                    detected_break = JOIN_CHAR[word['symbols'][-1].get('property',{}).get('detectedBreak',{}).get('type', 'EMPTY')]
-                    word_text += detected_break
-                    try:
-                        word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], guid=guid, text=word_text))
-                    except KeyError:
-                        continue
-                if len(word_boxes) > 0:
-                    paragraph_box = BoundingBox.aggregate(*word_boxes)
-                    purified = ''.join(c for c in paragraph_box.text if not ((c in REMOVAL_CHAR) or (c in JOIN_CHAR.values())))
-                    if len(purified) == 0:
-                        continue
-                    else:
-                        paragraph_boxes.append(paragraph_box)
-                else:
+    page = parsed['responses'][0]['fullTextAnnotation']['pages'][0]
+    block_boxes = []
+    for block in page['blocks']:
+        paragraph_boxes = []
+        for paragraph in block['paragraphs']:
+            word_boxes = []
+            for word in paragraph['words']:
+                word_text = ''.join(symbol['text'] for symbol in word['symbols'])
+                detected_break = JOIN_CHAR[word['symbols'][-1].get('property',{}).get('detectedBreak',{}).get('type', 'EMPTY')]
+                word_text += detected_break
+                try:
+                    word_boxes.append(BoundingBox(*word['boundingBox']['normalizedVertices'], guid=guid, text=word_text))
+                except KeyError:
                     continue
-            if len(paragraph_boxes) > 0:
-                block_box = BoundingBox.aggregate(*paragraph_boxes)
-                if len(block_box.text) > 2:
-                    block_boxes.append(BoundingBox.aggregate(*paragraph_boxes))
+            if len(word_boxes) > 0:
+                paragraph_box = BoundingBox.aggregate(*word_boxes)
+                purified = ''.join(c for c in paragraph_box.text if not ((c in REMOVAL_CHAR) or (c in JOIN_CHAR.values())))
+                if len(purified) == 0:
+                    continue
+                else:
+                    paragraph_boxes.append(paragraph_box)
             else:
                 continue
-        if len(block_boxes) > 0:
-            page_box = BoundingBox.aggregate(*block_boxes)
+        if len(paragraph_boxes) > 0:
+            block_box = BoundingBox.aggregate(*paragraph_boxes)
+            if len(block_box.text) > 2:
+                block_boxes.append(BoundingBox.aggregate(*paragraph_boxes))
         else:
-            page_box = None
+            continue
+    if len(block_boxes) > 0:
+        page_box = BoundingBox.aggregate(*block_boxes)
+    else:
+        page_box = BoundingBox({'x':0.0, 'y':0.0}, {'x':1.0, 'y':1.0}, text='', guid=guid)
     return page_box
 

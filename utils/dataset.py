@@ -42,8 +42,7 @@ def _process_single_image(guid, label, train, image_size, thread_storage):
 
 def build_dataset(*guids_and_labels, train, image_size=None):
     guids, labels = zip(*guids_and_labels)
-    #download_and_convert(*guids)
     image_size = image_size or SCALED_IMAGE_SIZE
     storage = threading.local()
-    Parallel(n_jobs=-1, backend='threading', verbose=False)(delayed(_process_single_image)(guid, label, train, image_size, storage)
+    Parallel(n_jobs=-1, backend='threading', verbose=False)(delayed(_process_single_sample)(guid, label, train, image_size, storage)
             for guid, label in tqdm(zip(guids, labels), total=len(guids)))
