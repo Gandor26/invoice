@@ -16,7 +16,7 @@ def prepare_invoices(*vhosts):
     guids.extend(get_guids_by_vhost(*vhosts, train=False))
     download_ocr(*guids)
     files = [os.path.split(f)[-1].split('_')[0] for f in glob(os.path.join(DATA_FOLDER, 'ocr', '*.json'))]
-    ocred = [g for g in guids if g in files]
+    ocred = list(set(files) & set(guids))
     download_and_convert(*ocred)
     return ocred
 
