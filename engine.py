@@ -1,24 +1,28 @@
-import os
 import torch as tc
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
 from torch import optim
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, SubsetRandomSampler
 from tqdm import tqdm
 from model import Model
-from loader import Dataset
+from loader import ImageDataset, SubsetWeightedSampler, SubsetSequentialSampler, split_train_valid
 from metric import AverageMeter, TimeMeter
 from utils import get_dir
 
 class Engine(object):
     def __init__(self, args):
-        data_dir = os.path.expanduser(args.data_dir)
-        train_dir = os.path.join(args.data_dir, 'train')
-        valid_dir = os.path.join(args.data_dir, 'valid')
         tc.set_default_dtype(tc.double)
-        self.train_set = Dataset(train_dir, args.cuda)
-        self.valid_set = Dataset(valid_dir, args.cuda)
-        self.train_loader = DataLoader(self.train_set, args.batch_size, shuffle=True)
-        self.valid_loader = DataLoader(self.valid_set, args.batch_size, shuffle=False)
+        tc.initial_seed(args.seed)
+        if args.cuda:
+            tc.cuda.initial_seed(args.seed)
+        self.train_set = ImageDataset(mode='train', cuda=args.cuda, seed=args.seed, margin=args.margin, threshold=args.threshold)
+        self.test_set = ImageDataset(mode='test', cuda=args.cuda)
+        idx_train, idx_test = split_train_valid(self.train_set, valid_split=args.valid_split)
+        self.train_loader = DataLoader(self.train_set, args.batch_size,
+                sampler=SubsetWeightedSampler(idx_train, self.train_set.get_weight(idx_train), args.num_training_samples))
+        self.valid_loader = DataLoader(self.train_set, args.batch_size,
+                sampler=SubsetSequentialSampler(idx_valid))
+        self.test_loader = DataLoader(self.test_set, args.batch_size, shuffle=False)
+
         model = Model(10, args.dropout)
         self.model = model.cuda() if args.cuda else model
         self.optimizer = optim.SGD(self.model.parameters(), args.lr, momentum=args.mmtm, weight_decay=args.wd)

@@ -3,7 +3,7 @@ import pymongo as mg
 from joblib import Parallel, delayed
 
 __all__ = ['aggregate', 'ordered_lookup', 'get_top_vhosts', 'get_guids_by_vhost', 'get_guids_by_top_vendor', 'get_labels', 'get_dataset',
-        'get_property_address', 'get_vendor_name']
+        'get_property_address', 'get_vendor_address', 'get_vendor_name']
 
 def get_collection(train):
     return OVERALL_COLLECTION if train is None else TRAIN_COLLECTION if train else TEST_COLLECTION
@@ -115,6 +115,14 @@ def get_property_address(*guids, client=None, db=DB_NAME, train=None):
     results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
             project_fields=project_fields, flatten=True)
     results = [{'name':d[0], 'address': ' '.join([str(s) for s in d[1:]])} for d in results]
+    return results
+
+@lookup_by_chunks(chunk_size=100000)
+def get_vendor_address(*guids, client=None, db=DB_NAME, train=None):
+    project_fields = VENDOR_ADDRESS_FIELD_NAMES
+    results = ordered_lookup(GUID_FIELD_NAME, *guids, client=client, db=db, train=train,
+            project_fields=project_fields, flatten=True)
+    results = [' '.join(map(str, d)) for d in results]
     return results
 
 @lookup_by_chunks(chunk_size=100000)

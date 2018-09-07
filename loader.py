@@ -1,8 +1,12 @@
 from torchvision.datasets import DatasetFolder
+from torch.utils.data import Sampler
 from sklearn.preprocessing import LabelEncoder as BaseLE
+from sklearn.model_selection import StratifiedShuffleSplit as SSS
+from sklearn.model_selection import ShuffleSplit as SS
 from skimage.util import img_as_float, pad, crop, random_noise
 from skimage.transform import resize
 from skimage.io import imread
+from collections import Counter
 from glob import glob
 from utils import DATA_FOLDER, IMAGE_FORMAT
 import numpy as np
@@ -13,9 +17,10 @@ DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
 DEFAULT_IMAGE_LOADER = lambda path: img_as_float(imread(path, as_gray=True))
 
 class RandomMargin(object):
-    def __init__(self, seed=42, max_margin=5):
+    def __init__(self, seed=None, max_margin=5):
         self.max_margin = max_margin
-        np.random.seed(seed)
+        if seed is not None:
+            np.random.seed(seed)
     def __call__(self, image):
         pad_or_crop = np.random.randint(2)
         if pad_or_crop:
@@ -72,33 +77,52 @@ class GrayscaleToTensor(ToTensor):
         super(GrayscaleToTensor, self).__init__(device, dtype, transform=lambda image: image[np.newaxis])
 
 class ImageDataset(DatasetFolder):
-    def __init__(self, root=DEFAULT_ROOT_DIR, ext=IMAGE_FORMAT, mode='train', loader=DEFAULT_IMAGE_LOADER, cuda=True):
-        self.root = os.path.join(root, mode)
-        self.loader = loader
-        self.device = 'cuda' if cuda else 'cpu'
-        self.labels = LabelEncoder().fit(list(map(lambda e:e.name, filter(lambda e: e.is_dir() and not e.name.startswith('.'), os.scandir(self.root)))))
-        self.samples = [(path, cls) for path in glob(os.path.join(self.root, cls, '*.{}'.format(ext))) for cls in self.labels.classes_]
-        self.transform = GrayscaleToTensor(device=self.device, dtype=tc.double)
-        self.target_transform = Compose(self.labels.transform, ToTensor(device=self.device, dtype=tc.long, transform=self.labels.transform))
-
-class BalancedImageDataset(ImageDataset):
     def __init__(self, root=DEFAULT_ROOT_DIR, ext=IMAGE_FORMAT, mode='train', loader=DEFAULT_IMAGE_LOADER, cuda=True,
-            num_sample_per_class=500):
+            seed=None, margin=5, threshold=0):
+        self.training = True if mode == 'train' else False
         self.root = os.path.join(root, mode)
         self.loader = loader
         self.device = 'cuda' if cuda else 'cpu'
-        self.labels = LabelEncoder().fit(list(map(lambda e:e.name, filter(lambda e: e.is_dir() and not e.name.startswith('.'), os.scandir(self.root)))))
-        self.num_sample_per_class = num_sample_per_class
-        self.samples = []
-        for cls in self.labels.classes_:
-            files = glob(os.path.join(self.root, cls, '*.{}'.format(ext)))
-            if len(files) < self.num_sample_per_class:
-                self.samples.extend([(f, cls) for f in np.random.choice(files, self.num_sample_per_class, replace=True)])
-            elif len(files) > self.num_sample_per_class:
-                self.samples.extend([(f, cls) for f in np.random.choice(files, self.num_sample_per_class, replace=False)])
-            else:
-                self.samples.extend([(f, cls) for f in files])
-        self.transform = Compose(RandomMargin(max_margin=8), GrayscaleToTensor(device=self.device, dtype=tc.double))
-        self.target_transform = Compose(self.labels.transform, ToTensor(device=self.device, dtype=tc.long))
+        self.classes = list(map(lambda e:e.name, filter(lambda e: e.is_dir() and not e.name.startswith('.'), os.scandir(self.root))))
+        self.paths = [glob(os.path.join(self.root, cls, '*.{}'.format(ext))) for cls in self.classes]
+        self.paths, self.classes, = zip(*filter(lambda t: len(t[0])>threshold, zip(self.paths, self.classes)))
+        self.labels = LabelEncoder().fit(self.classes)
+        self.samples = [(path, self.classes[i]) for i in range(len(self.classes)) for path in self.paths[i]]
+        self.augment_transform = Compose(RandomMargin(seed=seed, max_margin=margin), GrayscaleToTensor(device=self.device, dtype=tc.double))
+        self.normal_transform = GrayscaleToTensor(device=self.device, dtype=tc.double)
+        self.target_transform = ToTensor(device=self.device, dtype=tc.long, transform=self.labels.transform)
 
-Dataset = BalancedImageDataset
+    def get_weight(self, indices):
+        cnter = Counter([self.samples[i][1] for i in indices])
+        return 1/np.array([cnter[self.samples[i][1]] for i in indices])
+
+    @property
+    def transform(self):
+        return self.augment_transform if self.training else self.normal_transform
+
+    def train(self):
+        self.training = True
+
+    def eval(self):
+        self.training = False
+
+class SubsetWeightedSampler(Sampler):
+    def __init__(self, indices, weights, num_samples):
+        assert len(indices) == len(weights)
+        self.indices = indices
+        self.weights = tc.as_tensor(weights, dtype=tc.double)
+        self.num_samples = num_samples
+
+    def __len__(self):
+        return self.num_samples
+
+    def __iter__(self):
+        idx = tc.multinomial(self.weights, self.num_samples, replacement=True)
+        return (self.indices[i] for i in idx)
+
+def split_train_valid(dataset, valid_split, stratified=True, seed=None):
+    paths, labels = zip(*dataset.samples)
+    Splitter = SSS if stratified else SS
+    splitter = Splitter(n_splits=1, test_size=valid_split)
+    idx_train, idx_test = next(splitter.split(paths, labels))
+    return idx_train, idx_test
