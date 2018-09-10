@@ -2,7 +2,7 @@ import torch as tc
 from torch import optim
 from torch.nn import functional as F
 from tqdm import tqdm
-from model import Model
+from model import AlexBoWNet as Model
 from dataset import ClassificationDataset, CombinedDataset
 from metric import AverageMeter, TimeMeter
 from utils import get_dir
@@ -10,11 +10,13 @@ from utils import get_dir
 class Engine(object):
     def __init__(self, args):
         tc.set_default_dtype(tc.double)
-        tc.initial_seed(args.seed)
+        tc.manual_seed(args.seed)
         if args.cuda:
-            tc.cuda.initial_seed(args.seed)
-        self.dataset = ClassificationDataset(CombinedDataset, cuda=args.cuda, seed=args.seed, stratified=False)
-        model = Model(self.dataset.num_classes, args.dropout)
+            tc.cuda.manual_seed(args.seed)
+        self.dataset = ClassificationDataset(CombinedDataset, cuda=args.cuda, seed=args.seed, stratified=False, threshold=args.threshold)
+        self.batch_size = args.batch_size
+        self.num_training_samples = args.num_training_samples
+        model = Model(self.dataset.num_classes, self.dataset.vocab_size, args.dropout)
         self.model = model.cuda() if args.cuda else model
         self.optimizer = optim.SGD(self.model.parameters(), args.lr, momentum=args.mmtm, weight_decay=args.wd)
         self.decayer = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.2)
@@ -46,9 +48,10 @@ class Engine(object):
 
     def eval(self):
         meter = AverageMeter('acc')
-        for samples, labels in tqdm(self.valid_loader, desc='Valid'):
+        for samples, labels in tqdm(self.dataset.valid_loader(self.batch_size), desc='Valid'):
             with tc.no_grad():
-                preds = self.model(samples)
+                image, bow = samples
+                preds = self.model(image, bow)
             _, top = preds.topk(1, dim=1)
             acc = labels.eq(top.squeeze(dim=1)).float().mean()
             meter.add(acc.item(), labels.size(0))
@@ -63,8 +66,9 @@ class Engine(object):
         meter = AverageMeter()
         for epoch in range(start_epoch, num_epochs):
             self.decayer.step()
-            for samples, labels in tqdm(self.train_loader, desc='Train epoch {}'.format(epoch+1)):
-                preds = self.model(samples)
+            for samples, labels in tqdm(self.dataset.train_loader(self.batch_size, self.num_training_samples), desc='Train epoch {}'.format(epoch+1)):
+                image, bow = samples
+                preds = self.model(image, bow)
                 loss = F.cross_entropy(preds, labels)
                 self.optimizer.zero_grad()
                 loss.backward()

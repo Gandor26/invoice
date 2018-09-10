@@ -60,3 +60,6 @@ class BoW(object):
         vector = self.vectorizer.transform([words]).toarray()[0]
         return vector
 
+    @property
+    def vocab_size(self):
+        return len(self.vectorizer.vocabulary)

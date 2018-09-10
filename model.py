@@ -22,7 +22,7 @@ class SpatialPyramidPooling2d(nn.Module):
             features.append(pooling_layer(x).view(b, -1))
         return tc.cat(features, dim=-1)
 
-def make_conv_block(in_channel, out_channel, kernel_size, stride=1, padding=0, add_pooling=True):
+def make_conv_block(in_channel, out_channel, kernel_size, stride=1, padding=0, add_pooling=False):
     base = nn.Sequential(
             nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride, padding=padding),
             nn.BatchNorm2d(out_channel),
@@ -37,7 +37,7 @@ def make_conv_block(in_channel, out_channel, kernel_size, stride=1, padding=0, a
 
 class AlexNet(nn.Module):
     def __init__(self, num_classes, dropout=0.5):
-        super(Model, self).__init__()
+        super(AlexNet, self).__init__()
         self.features = nn.Sequential(
                 make_conv_block(1, 64, kernel_size=11, stride=4, padding=2, add_pooling=True),
                 make_conv_block(64, 192, kernel_size=5, padding=2, add_pooling=True),
@@ -63,7 +63,7 @@ class AlexNet(nn.Module):
 
 class AlexBoWNet(AlexNet):
     def __init__(self, num_classes, vocab_size, dropout=0.5):
-        super(ImageBoWModel, self).__init__(num_classes, dropout)
+        super(AlexBoWNet, self).__init__(num_classes, dropout)
         self.bow = nn.Sequential(
                 nn.Linear(vocab_size, 512),
                 nn.ReLU(inplace=True),
@@ -73,9 +73,9 @@ class AlexBoWNet(AlexNet):
                 nn.Linear(512, num_classes)
                 )
 
-        def forward(self, image, word_count):
-            image = self.features(image)
-            image = image_features.view(image.size(0), -1)
-            image_prediction = self.classifier(image)
-            bow_prediction = self.bow(word_count)
-            return image_prediction + bow_prediction
+    def forward(self, image, word_count):
+        image = self.features(image)
+        image = image.view(image.size(0), -1)
+        image_prediction = self.classifier(image)
+        bow_prediction = self.bow(word_count)
+        return image_prediction + bow_prediction

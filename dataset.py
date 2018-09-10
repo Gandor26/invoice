@@ -17,7 +17,7 @@ DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
 
 class ClassificationDataset(object):
     '''
-        Utility of classification dataset
+        Utility wrapper of classification dataset
         Arguments:
             dataset_type: [ImageDataset, CombinedDataset], the class of dataset
             root: root folder of dataset files
@@ -33,6 +33,12 @@ class ClassificationDataset(object):
         self._train_idx, self._valid_idx = self._split_train_valid(**kwargs)
         self._test_set = dataset_type(root, training=False, known_classes=self._train_set.classes, **kwargs)
 
+    def __getattribute__(self, name):
+        try:
+            return super(ClassificationDataset, self).__getattribute__(name)
+        except AttributeError:
+            return getattr(self._train_set, name)
+
     def _split_train_valid(self, valid_split=0.1, stratified=True, seed=None, **kwargs):
         paths, labels = zip(*self._train_set.samples)
         if stratified:
@@ -43,10 +49,6 @@ class ClassificationDataset(object):
             splitter = SS(n_splits=1, test_size=valid_split)
         idx_train, idx_test = next(splitter.split(paths, labels))
         return idx_train, idx_test
-
-    @property
-    def num_classes(self):
-        return self._train_set.num_classes
 
     def train_loader(self, batch_size, num_samples):
         self._train_set.train()
@@ -133,6 +135,10 @@ class CombinedDataset(ImageDataset):
             if len(cls_paths) > (threshold if self.training else 0):
                 samples.extend([(path_pair, cls) for path_pair in cls_paths])
         return samples, classes
+
+    @property
+    def vocab_size(self):
+        return self.text_transform[0].vocab_size
 
     def loader(self, path_pair):
         image_path, text_path = path_pair

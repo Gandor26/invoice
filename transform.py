@@ -13,6 +13,9 @@ class Compose(object):
             vals = t(vals)
         return vals
 
+    def __getitem__(self, index):
+        return self.transforms[index]
+
 class RandomMargin(object):
     def __init__(self, seed=None, max_margin=5):
         self.max_margin = max_margin
