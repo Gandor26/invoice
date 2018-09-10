@@ -13,7 +13,8 @@ class Engine(object):
         tc.manual_seed(args.seed)
         if args.cuda:
             tc.cuda.manual_seed(args.seed)
-        self.dataset = ClassificationDataset(CombinedDataset, cuda=args.cuda, seed=args.seed, stratified=False, threshold=args.threshold)
+        self.dataset = ClassificationDataset(CombinedDataset, root=args.data_dir, cuda=args.cuda,
+                seed=args.seed, stratified=False, threshold=args.threshold)
         self.batch_size = args.batch_size
         self.num_training_samples = args.num_training_samples
         model = Model(self.dataset.num_classes, self.dataset.vocab_size, args.dropout)

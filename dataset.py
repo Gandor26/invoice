@@ -14,7 +14,6 @@ import os
 
 DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
 
-
 class ClassificationDataset(object):
     '''
         Utility wrapper of classification dataset
