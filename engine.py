@@ -1,10 +1,9 @@
 import torch as tc
 from torch import optim
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, SubsetRandomSampler
 from tqdm import tqdm
 from model import Model
-from loader import ImageDataset, SubsetWeightedSampler, SubsetSequentialSampler, split_train_valid
+from dataset import ClassificationDataset, CombinedDataset
 from metric import AverageMeter, TimeMeter
 from utils import get_dir
 
@@ -14,16 +13,8 @@ class Engine(object):
         tc.initial_seed(args.seed)
         if args.cuda:
             tc.cuda.initial_seed(args.seed)
-        self.train_set = ImageDataset(mode='train', cuda=args.cuda, seed=args.seed, margin=args.margin, threshold=args.threshold)
-        self.test_set = ImageDataset(mode='test', cuda=args.cuda)
-        idx_train, idx_test = split_train_valid(self.train_set, valid_split=args.valid_split)
-        self.train_loader = DataLoader(self.train_set, args.batch_size,
-                sampler=SubsetWeightedSampler(idx_train, self.train_set.get_weight(idx_train), args.num_training_samples))
-        self.valid_loader = DataLoader(self.train_set, args.batch_size,
-                sampler=SubsetSequentialSampler(idx_valid))
-        self.test_loader = DataLoader(self.test_set, args.batch_size, shuffle=False)
-
-        model = Model(10, args.dropout)
+        self.dataset = ClassificationDataset(CombinedDataset, cuda=args.cuda, seed=args.seed, stratified=False)
+        model = Model(self.dataset.num_classes, args.dropout)
         self.model = model.cuda() if args.cuda else model
         self.optimizer = optim.SGD(self.model.parameters(), args.lr, momentum=args.mmtm, weight_decay=args.wd)
         self.decayer = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.2)

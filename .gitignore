@@ -106,7 +106,6 @@ venv.bak/
 
 # data
 data/
-data*
 dump*
 warehouse/
 exp*
