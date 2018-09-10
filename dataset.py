@@ -83,7 +83,7 @@ class ImageDataset(DatasetFolder):
             else:
                 raise ValueError('Test set should be given a list of known classes')
         paths = [glob(os.path.join(self.root, cls, '*.{}'.format(ext))) for cls in classes]
-        paths, classes, = zip(*filter(lambda t: len(t[0])>threshold if self.training else 0, zip(paths, classes)))
+        paths, classes, = zip(*filter(lambda t: len(t[0])>(threshold if self.training else 0), zip(paths, classes)))
         samples = [(path, classes[i]) for i in range(len(classes)) for path in paths[i]]
         return samples, classes
 
