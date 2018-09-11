@@ -131,7 +131,6 @@ class ImageBoWEngine(BaseEngine):
                 loss.backward()
                 self.optimizer.step()
                 train_meter.add(loss.item(), labels.size(0))
-                break
             vm1, vm2 = self.eval(valid_mode=True)
             self.decayer.step(vm2.read())
             logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
