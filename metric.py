@@ -1,4 +1,5 @@
 import numpy as np
+import torch as tc
 import time
 
 class BaseMeter(object):
@@ -32,6 +33,14 @@ class TimeMeter(BaseMeter):
 
     def reset(self):
         self.start_point = time.time()
-
     def read(self):
         return time.time() - self.start_point
+
+class TopKAccuracy(object):
+    def __init__(self, top_k):
+        self.top_k = top_k
+
+    def __call__(self, preds, labels):
+        _, top = preds.topk(self.top_k, dim=1)
+        acc = labels.unsqueeze(dim=1).eq(top).float().sum(dim=1, keepdim=False).mean()
+        return acc

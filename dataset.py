@@ -6,10 +6,10 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import DatasetFolder
 from skimage.io import imread
 from skimage.util import img_as_float
-from torch import double, long
 from collections import Counter
 from glob import glob
 import pickle as pk
+import torch
 import os
 
 DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
@@ -27,7 +27,8 @@ class ClassificationDataset(object):
             stratified: if True, use stratified sampling for valid deataset
             threshold: only classes with at least so many samples are considered
     '''
-    def __init__(self, dataset_type, root=DEFAULT_ROOT_DIR, **kwargs):
+    def __init__(self, dataset_type, root, **kwargs):
+        root = root or DEFAULT_ROOT_DIR
         self._train_set = dataset_type(root, training=True, **kwargs)
         self._train_idx, self._valid_idx = self._split_train_valid(**kwargs)
         self._test_set = dataset_type(root, training=False, known_classes=self._train_set.classes, **kwargs)
@@ -72,9 +73,9 @@ class ImageDataset(DatasetFolder):
         self.samples, self.classes = self._make_samples(known_classes, ext, threshold)
         self.labels = LabelEncoder().fit(self.classes)
         self.augment_transform = Compose(RandomMargin(seed=seed, max_margin=margin),
-                GrayscaleToTensor(device=self.device, dtype=double))
-        self.normal_transform = GrayscaleToTensor(device=self.device, dtype=double)
-        self.target_transform = ToTensor(device=self.device, dtype=long, transform=self.labels.transform)
+                GrayscaleToTensor(device=self.device, dtype=torch.float))
+        self.normal_transform = GrayscaleToTensor(device=self.device, dtype=torch.float)
+        self.target_transform = ToTensor(device=self.device, dtype=torch.long, transform=self.labels.transform)
 
     def _make_samples(self, classes, ext, threshold):
         if classes is None:
@@ -113,7 +114,7 @@ class ImageDataset(DatasetFolder):
 class CombinedDataset(ImageDataset):
     def __init__(self, root, **kwargs):
         super(CombinedDataset, self).__init__(root, **kwargs)
-        self.text_transform = Compose(BoW(), ToTensor(dtype=double, device=self.device))
+        self.text_transform = Compose(BoW(), ToTensor(dtype=torch.float, device=self.device))
 
     def _make_samples(self, classes, ext, threshold):
         image_ext = ext
