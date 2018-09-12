@@ -1,7 +1,7 @@
 #! /usr/local/bin/python
 from utils import DATA_FOLDER
 from utils import get_top_vhosts, get_guids_by_vhost, get_labels
-from utils import download_and_convert, download_ocr, clear_log_file, get_dir
+from utils import download_and_convert, download_ocr, get_dir
 from utils import build_dataset
 from collections import defaultdict
 from numpy import random
@@ -68,7 +68,6 @@ def create_dataset_folder(train_set=None, test_set=None, image_size=None):
     build_dataset(*guids_and_labels_test, train=False, image_size=image_size)
 
 if __name__ == '__main__':
-    clear_log_file()
     parser = argparse.ArgumentParser()
     parser.add_argument('vhosts', nargs='+')
     parser.add_argument('--download', action='store_true',

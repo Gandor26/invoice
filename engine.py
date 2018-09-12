@@ -27,7 +27,6 @@ class BaseEngine(object):
         self._make_metric(args)
         self.num_training_samples = args.num_training_samples
         self.dump_dir = get_dir(args.dump_dir)
-        self.log_path = args.log_path
 
     def _make_model(self, args):
         raise NotImplementedError
@@ -42,7 +41,7 @@ class BaseEngine(object):
         raise NotImplementedError
 
     def dump(self, epoch, tag=None, model=True, optimizer=True, decayer=True):
-        logger = get_logger(self.log_path)
+        logger = get_logger('train.{}'.format(self.__class__.__name__))
         state = {'epoch': epoch}
         if model:
             state['model'] = self.model.state_dict()
@@ -55,7 +54,7 @@ class BaseEngine(object):
         logger.info('Checkpoint dumped')
 
     def load(self, model=True, optimizer=True, decayer=True, tag=None):
-        logger = get_logger(self.log_path)
+        logger = get_logger('train.{}'.format(self.__class__.__name__))
         tag = tag or 'default'
         try:
             state = tc.load(os.path.join(self.dump_dir, 'state_{}.pkl'.format(tag)))
@@ -117,7 +116,7 @@ class ImageBoWEngine(BaseEngine):
             start_epoch = self.load()
         else:
             start_epoch = 0
-        logger = get_logger(self.log_path, clear=(not resume))
+        logger = get_logger('train.{}'.format(self.__class__.__name__), clear=(not resume))
         timer = TimeMeter()
         train_meter = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):

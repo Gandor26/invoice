@@ -46,7 +46,7 @@ def _google_pdf_ocr(guid, account, thread_storage):
         thread_storage.storage_client = gs.Client()
     storage_client = thread_storage.storage_client
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger()
+        thread_storage.logger = get_logger('data.ocr')
     logger = thread_storage.logger
     if _check_duplicate(guid, storage_client):
         logger.warn('Skipping {} because it has already been OCRd'.format(guid))

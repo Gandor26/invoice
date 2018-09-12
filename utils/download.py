@@ -53,7 +53,7 @@ def _check_duplicate_json(guid):
 
 def _download_and_convert(guid, account, train, thread_storage, image_format):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger()
+        thread_storage.logger = get_logger('data.download')
     if _check_duplicate_pdf(guid):
         thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     else:
@@ -85,8 +85,9 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
         os.system(command.format(gs_device, img_path, pdf_path))
         _check_duplicate_img(guid, image_format)
 
-def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), image_format=IMAGE_FORMAT):
+def download_and_convert(*guids, n_jobs=-1, image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
+    logger = get_logger('data.download')
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
     accounts = get_labels(*guids, account=True, train=None, flatten=True)
     train_flags = get_dataset(*guids)
@@ -96,7 +97,7 @@ def download_and_convert(*guids, n_jobs=-1, logger=get_logger(), image_format=IM
 
 def _download_ocr_file(guid, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger()
+        thread_storage.logger = get_logger('data.download')
     logger = thread_storage.logger
     if _check_duplicate_json(guid):
         logger.warn('JSON of {} already dumped locally'.format(guid))
@@ -114,8 +115,9 @@ def _download_ocr_file(guid, thread_storage):
             blob.download_to_filename(ocr_path)
             _check_duplicate_json(guid)
 
-def download_ocr(*guids, n_jobs=-1, logger=get_logger()):
+def download_ocr(*guids, n_jobs=-1):
     thread_storage = threading.local()
+    logger = get_logger('data.download')
     logger.info('Downloading {} OCRed invoices'.format(len(guids)))
     Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
             (delayed(_download_ocr_file)(guid, thread_storage) for guid in tqdm(guids))

@@ -5,7 +5,6 @@ def main(*unused_args):
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', metavar='DIR', type=str)
     parser.add_argument('--dump_dir', metavar='DIR', type=str, default='./dump')
-    parser.add_argument('--log_path', metavar='PATH', type=str, default='./training.log')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--margin', type=int)
