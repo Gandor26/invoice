@@ -13,7 +13,9 @@ class BaseEngine(object):
         self.dataset = ClassificationDataset(CombinedDataset, root=args.data_dir, cuda=args.cuda,
                 seed=args.seed, stratified=False, threshold=args.threshold)
         self._make_model(args)
+        tc.manual_seed(args.seed)
         if args.cuda and tc.cuda.is_available():
+            tc.cuda.manual_seed_all(args.seed)
             if tc.cuda.device_count() > 1:
                 self.batch_size = args.batch_size * tc.cuda.device_count()
                 self.model = DataParallel(self.model)
