@@ -120,9 +120,9 @@ class ImageBoWEngine(BaseEngine):
             start_epoch = 0
         logger = get_logger('train.{}'.format(self.__class__.__name__), clear=(not resume))
         timer = TimeMeter()
-        train_meter = AverageMeter('train_loss')
+        tm = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):
-            train_meter.reset()
+            tm.reset()
             for samples, labels in tqdm(self.dataset.train_loader(self.batch_size, self.num_training_samples),
                     desc='Train epoch {}'.format(epoch+1)):
                 image, bow = samples
@@ -131,9 +131,11 @@ class ImageBoWEngine(BaseEngine):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                train_meter.add(loss.item(), labels.size(0))
-            vm1, vm2 = self.eval(valid_mode=True)
-            self.decayer.step(vm2.read())
+                tm.add(loss.item(), labels.size(0))
+            vm_loss, vm_acc = self.eval(valid_mode=True)
+            if self.decayer.is_better(vm_acc.read(), self.decayer.best):
+                self.dump()
+            self.decayer.step(vm_acc.read(epoch))
             logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
-                epoch+1, timer.read(), train_meter.tag, train_meter.read(), vm1.tag, vm1.read(), vm2.tag, vm2.read()))
+                epoch+1, timer.read(), tm.tag, tm.read(), vm_loss.tag, vm_loss.read(), vm_acc.tag, vm_acc.read()))
 
