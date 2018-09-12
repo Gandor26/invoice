@@ -1,3 +1,4 @@
+import os
 import torch as tc
 from torch import optim
 from torch import nn
@@ -135,7 +136,7 @@ class ImageBoWEngine(BaseEngine):
             vm_loss, vm_acc = self.eval(valid_mode=True)
             if self.decayer.is_better(vm_acc.read(), self.decayer.best):
                 self.dump(epoch)
-            self.decayer.step(vm_acc.read(epoch))
+            self.decayer.step(vm_acc.read())
             logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
                 epoch+1, timer.read(), tm.tag, tm.read(), vm_loss.tag, vm_loss.read(), vm_acc.tag, vm_acc.read()))
 
