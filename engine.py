@@ -129,7 +129,7 @@ class ImageBoWEngine(BaseEngine):
                 preds = self.model(image, bow)
             acc = self.metric(preds, labels)
             acc_meter.add(acc.item(), labels.size(0))
-        self.test_logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
+        self.test_logger.info('After {} epochs of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
 
     def train(self, num_epochs, resume=False):
         if resume:
@@ -194,7 +194,7 @@ class ImageBoWEngine_v2(ImageBoWEngine):
                     label = self.dataset.labels.inverse_transform(labels[i].item())
                     preds = self.dataset.labels.inverse_transform(top[i].cpu().numpy())
                     self.test_logger.info('Prediction failure: {} belongs to {}, but was predicted as {}'.format(guid, label, preds))
-        self.test_logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
+        self.test_logger.info('After {} epochs of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
 
     def train(self, num_epochs, resume=False):
         if resume:
