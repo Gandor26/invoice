@@ -31,7 +31,6 @@ class BaseEngine(object):
         self.tag = args.tag or 'default'
         self.dump_dir = get_dir(args.dump_dir)
         self.train_logger = get_logger('train.{}'.format(self.__class__.__name__))
-        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
 
     def _make_dataset(self, args):
         raise NotImplementedError
@@ -122,6 +121,7 @@ class ImageBoWEngine(BaseEngine):
 
     def test(self):
         epoch = self.load()
+        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
         acc_meter = AverageMeter('test_accuracy')
         for samples, labels in tqdm(self.dataset.test_loader(self.batch_size), desc='Test'):
             with tc.no_grad():
@@ -136,7 +136,7 @@ class ImageBoWEngine(BaseEngine):
             start_epoch = self.load()
         else:
             start_epoch = 0
-            self.train_logger.info('\n\n'+'-'*100)
+            self.train_logger.info('-'*100)
         timer = TimeMeter()
         tm = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):
@@ -178,6 +178,7 @@ class ImageBoWEngine_v2(ImageBoWEngine):
 
     def test(self):
         epoch = self.load()
+        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
         acc_meter = AverageMeter('test_accuracy')
         for samples, labels in tqdm(self.dataset.test_loader(self.batch_size), desc='Test'):
             with tc.no_grad():
@@ -200,7 +201,7 @@ class ImageBoWEngine_v2(ImageBoWEngine):
             start_epoch = self.load()
         else:
             start_epoch = 0
-            self.train_logger.info('\n\n'+'-'*100)
+            self.train_logger.info('-'*100)
         timer = TimeMeter()
         tm = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):

@@ -1,9 +1,10 @@
+import os
 import argparse
 from engine import ImageBoWEngine_v2 as Engine
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', metavar='DIR', type=str)
+    parser.add_argument('data_dir', metavar='DIR', type=str)
     parser.add_argument('--dump_dir', metavar='DIR', type=str, default='./dump')
     parser.add_argument('--tag', type=str)
     parser.add_argument('--cuda', action='store_true')
