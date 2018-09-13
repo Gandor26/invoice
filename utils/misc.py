@@ -7,7 +7,8 @@ CONSOLE_FORMAT = logging.Formatter('{asctime}: {pathname}:{lineno} -> {message}'
 FILE_FORMAT = logging.Formatter('{asctime}: {name} -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
 
 def _get_log_path(name):
-    return os.path.expanduser('~/workspace/invoice/logs/{}.log'.format(name))
+    logs = get_dir(os.path.expanduser('~/workspace/invoice/logs'))
+    return os.path.join(logs, '{}.log'.format(name))
 
 def _make_root_logger(name, mode='a'):
     root_logger = logging.getLogger(name)
