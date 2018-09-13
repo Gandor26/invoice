@@ -30,7 +30,8 @@ class BaseEngine(object):
         self.num_training_samples = args.num_training_samples
         self.tag = args.tag or 'default'
         self.dump_dir = get_dir(args.dump_dir)
-        self.logger = get_logger('train.{}'.format(self.__class__.__name__))
+        self.train_logger = get_logger('train.{}'.format(self.__class__.__name__))
+        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
 
     def _make_dataset(self, args):
         raise NotImplementedError
@@ -56,7 +57,7 @@ class BaseEngine(object):
         if decayer and (getattr(self, 'decayer', None) is not None):
             state['decayer'] = self.decayer.state_dict()
         tc.save(state, os.path.join(self.dump_dir, 'state_{}.pkl'.format(self.tag)))
-        self.logger.info('Checkpoint dumped')
+        self.train_logger.info('Checkpoint {} dumped'.format(self.tag))
 
     def load(self, model=True, optimizer=True, decayer=True):
         try:
@@ -69,7 +70,6 @@ class BaseEngine(object):
             self.optimizer.load_state_dict(state['optimizer'])
         if decayer and (state.get('decayer') is not None) and (getattr(self, 'decayer', None) is not None):
             self.decayer.load_state_dict(state['decayer'])
-        self.logger.info('Checkpoint loaded')
         return state['epoch']
 
     def eval(self):
@@ -129,13 +129,14 @@ class ImageBoWEngine(BaseEngine):
                 preds = self.model(image, bow)
             acc = self.metric(preds, labels)
             acc_meter.add(acc.item(), labels.size(0))
-        self.logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
+        self.test_logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
 
     def train(self, num_epochs, resume=False):
         if resume:
             start_epoch = self.load()
         else:
             start_epoch = 0
+            self.train_logger.info('\n\n'+'-'*100)
         timer = TimeMeter()
         tm = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):
@@ -153,7 +154,7 @@ class ImageBoWEngine(BaseEngine):
             if self.decayer.is_better(vm_acc.read(), self.decayer.best):
                 self.dump(epoch)
             self.decayer.step(vm_acc.read())
-            self.logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
+            self.train_logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
                 epoch+1, timer.read(), tm.tag, tm.read(), vm_loss.tag, vm_loss.read(), vm_acc.tag, vm_acc.read()))
 
 
@@ -178,7 +179,6 @@ class ImageBoWEngine_v2(ImageBoWEngine):
     def test(self):
         epoch = self.load()
         acc_meter = AverageMeter('test_accuracy')
-        test_logger = get_logger('test')
         for samples, labels in tqdm(self.dataset.test_loader(self.batch_size), desc='Test'):
             with tc.no_grad():
                 guids, image, bow = samples
@@ -192,14 +192,15 @@ class ImageBoWEngine_v2(ImageBoWEngine):
                     guid = guids[i]
                     label = self.dataset.labels.inverse_transform(labels[i].item())
                     preds = self.dataset.labels.inverse_transform(top[i].cpu().numpy())
-                    test_logger.info('Prediction failure: {} belongs to {}, but was predicted as {}'.format(guid, label, preds))
-        self.logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
+                    self.test_logger.info('Prediction failure: {} belongs to {}, but was predicted as {}'.format(guid, label, preds))
+        self.test_logger.info('After {} of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
 
     def train(self, num_epochs, resume=False):
         if resume:
             start_epoch = self.load()
         else:
             start_epoch = 0
+            self.train_logger.info('\n\n'+'-'*100)
         timer = TimeMeter()
         tm = AverageMeter('train_loss')
         for epoch in range(start_epoch, start_epoch+num_epochs):
@@ -217,5 +218,5 @@ class ImageBoWEngine_v2(ImageBoWEngine):
             if self.decayer.is_better(vm_acc.read(), self.decayer.best):
                 self.dump(epoch)
             self.decayer.step(vm_acc.read())
-            self.logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
+            self.train_logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
                 epoch+1, timer.read(), tm.tag, tm.read(), vm_loss.tag, vm_loss.read(), vm_acc.tag, vm_acc.read()))
