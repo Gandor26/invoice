@@ -6,8 +6,15 @@ __all__ = ['get_dir', 'get_logger']
 CONSOLE_FORMAT = logging.Formatter('{asctime}: {pathname}:{lineno} -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
 FILE_FORMAT = logging.Formatter('{asctime}: {name} -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
 
+def get_dir(path):
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
 def _get_log_path(name):
-    return os.path.expanduser('~/workspace/invoice/logs/{}.log'.format(name))
+    logs = get_dir(os.path.expanduser('~/workspace/invoice/logs'))
+    return os.path.join(logs, '{}.log'.format(name))
+
 
 def _make_root_logger(name, mode='a'):
     root_logger = logging.getLogger(name)
@@ -21,14 +28,10 @@ def _make_root_logger(name, mode='a'):
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
+
 _make_root_logger('utils')
 _make_root_logger('train')
 _make_root_logger('test', mode='w')
-
-def get_dir(path):
-    os.makedirs(path, exist_ok=True)
-    return path
-
 
 def get_logger(name, clear=False):
     root = name.split('.')[0]
