@@ -147,15 +147,6 @@ class CombinedDataset(ImageDataset):
 
     def __getitem__(self, index):
         path_pair, target = self.samples[index]
-        image, box = self.loader(path_pair)
-        image = self.transform(image)
-        text = self.text_transform(box)
-        target = self.target_transform(target)
-        return (image, text), target
-
-class CombinedDataset_v2(CombinedDataset):
-    def __getitem__(self, index):
-        path_pair, target = self.samples[index]
         guid = os.path.split(path_pair[0])[-1].split(os.path.extsep)[0]
         image, box = self.loader(path_pair)
         image = self.transform(image)

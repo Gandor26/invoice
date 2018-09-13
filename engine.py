@@ -5,7 +5,7 @@ from torch import nn
 from torch.nn.parallel import DataParallel
 from tqdm import tqdm
 from model import AlexBoWNet, AlexNet
-from dataset import ClassificationDataset, CombinedDataset, CombinedDataset_v2
+from dataset import ClassificationDataset, CombinedDataset
 from metric import AverageMeter, TimeMeter, TopKAccuracy
 from utils import get_dir, get_logger
 
@@ -105,63 +105,6 @@ class ImageBoWEngine(BaseEngine):
 
     def _make_metric(self, args):
         self.metric = TopKAccuracy(top_k=args.top_k)
-
-    def eval(self):
-        loss_meter = AverageMeter('valid_loss')
-        acc_meter = AverageMeter('valid_accuracy')
-        for samples, labels in tqdm(self.dataset.valid_loader(self.batch_size), desc='Validation'):
-            with tc.no_grad():
-                image, bow = samples
-                preds = self.model(image, bow)
-            loss = self.loss_func(preds, labels)
-            loss_meter.add(loss.item(), labels.size(0))
-            acc = self.metric(preds, labels)
-            acc_meter.add(acc.item(), labels.size(0))
-        return loss_meter, acc_meter
-
-    def test(self):
-        epoch = self.load()
-        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
-        acc_meter = AverageMeter('test_accuracy')
-        for samples, labels in tqdm(self.dataset.test_loader(self.batch_size), desc='Test'):
-            with tc.no_grad():
-                image, bow = samples
-                preds = self.model(image, bow)
-            acc = self.metric(preds, labels)
-            acc_meter.add(acc.item(), labels.size(0))
-        self.test_logger.info('After {} epochs of training, {} = {:.4f}'.format(epoch+1, acc_meter.tag, acc_meter.read()))
-
-    def train(self, num_epochs, resume=False):
-        if resume:
-            start_epoch = self.load()
-        else:
-            start_epoch = 0
-            self.train_logger.info('-'*100)
-        timer = TimeMeter()
-        tm = AverageMeter('train_loss')
-        for epoch in range(start_epoch, start_epoch+num_epochs):
-            tm.reset()
-            for samples, labels in tqdm(self.dataset.train_loader(self.batch_size, self.num_training_samples),
-                    desc='Train epoch {}'.format(epoch+1)):
-                image, bow = samples
-                preds = self.model(image, bow)
-                loss = self.loss_func(preds, labels)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                tm.add(loss.item(), labels.size(0))
-            vm_loss, vm_acc = self.eval()
-            if self.decayer.is_better(vm_acc.read(), self.decayer.best):
-                self.dump(epoch)
-            self.decayer.step(vm_acc.read())
-            self.train_logger.info('Epoch {:02d}, elapsed Time {:.2f}, {} = {:.4f}, {} = {:.4f}, {} = {:.4f}'.format(
-                epoch+1, timer.read(), tm.tag, tm.read(), vm_loss.tag, vm_loss.read(), vm_acc.tag, vm_acc.read()))
-
-
-class ImageBoWEngine_v2(ImageBoWEngine):
-    def _make_dataset(self, args):
-        self.dataset = ClassificationDataset(CombinedDataset_v2, root=args.data_dir, cuda=args.cuda,
-                seed=args.seed, stratified=False, threshold=args.threshold)
 
     def eval(self):
         loss_meter = AverageMeter('valid_loss')
