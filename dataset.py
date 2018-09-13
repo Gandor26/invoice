@@ -12,8 +12,6 @@ import pickle as pk
 import torch
 import os
 
-DEFAULT_ROOT_DIR = os.path.join(DATA_FOLDER, 'set')
-
 class ClassificationDataset(object):
     '''
         Utility wrapper of classification dataset
@@ -43,10 +41,10 @@ class ClassificationDataset(object):
         paths, labels = zip(*self._train_set.samples)
         if stratified:
             from sklearn.model_selection import StratifiedShuffleSplit as SSS
-            splitter = SSS(n_splits=1, test_size=valid_split)
+            splitter = SSS(n_splits=1, test_size=valid_split, random_state=seed)
         else:
             from sklearn.model_selection import ShuffleSplit as SS
-            splitter = SS(n_splits=1, test_size=valid_split)
+            splitter = SS(n_splits=1, test_size=valid_split, random_state=seed)
         idx_train, idx_test = next(splitter.split(paths, labels))
         return idx_train, idx_test
 
@@ -154,4 +152,15 @@ class CombinedDataset(ImageDataset):
         text = self.text_transform(box)
         target = self.target_transform(target)
         return (image, text), target
+
+class CombinedDataset_v2(CombinedDataset):
+    def __getitem__(self, index):
+        path_pair, target = self.samples[index]
+        guid = os.path.split(path_pair[0])[-1].split(os.path.extsep)[0]
+        image, box = self.loader(path_pair)
+        image = self.transform(image)
+        text = self.text_transform(box)
+        target = self.target_transform(target)
+        return (guid, image, text), target
+
 

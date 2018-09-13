@@ -42,5 +42,5 @@ class TopKAccuracy(object):
 
     def __call__(self, preds, labels):
         _, top = preds.topk(self.top_k, dim=1)
-        acc = labels.unsqueeze(dim=1).eq(top).float().sum(dim=1, keepdim=False).mean()
+        acc = labels.unsqueeze(dim=1).eq(top).any(dim=1, keepdim=False).float().mean()
         return acc
