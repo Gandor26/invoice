@@ -26,7 +26,10 @@ def main():
     engine = Engine(args)
 
     if not args.eval:
-        engine.train(args.num_epochs, args.resume)
+        try:
+            engine.train(args.num_epochs, args.resume)
+        except KeyboardInterrupt:
+            pass
     engine.test()
 
 
