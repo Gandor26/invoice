@@ -15,7 +15,7 @@ __all__ = ['build_dataset']
 
 def _process_single_sample(guid, label, train, image_size, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger('data.dataset')
+        thread_storage.logger = get_logger('utils.dataset')
     try:
        box = parse_ocr_json(guid)
        original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=True)
@@ -30,7 +30,7 @@ def _process_single_sample(guid, label, train, image_size, thread_storage):
 
 def _process_single_image(guid, label, train, image_size, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger('data.dataset')
+        thread_storage.logger = get_logger('utils.dataset')
     try:
         original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=False)
         resized_image = resize(original_image, (image_size, image_size), mode='edge', anti_aliasing=False)
@@ -45,4 +45,4 @@ def build_dataset(*guids_and_labels, train, image_size=None):
     image_size = image_size or SCALED_IMAGE_SIZE
     storage = threading.local()
     Parallel(n_jobs=-1, backend='threading', verbose=False)(delayed(_process_single_sample)(guid, label, train, image_size, storage)
-            for guid, label in tqdm(zip(guids, labels), total=len(guids)))
+            for guid, label in tqdm(zip(guids, labels), total=len(guids), desc='Building dataset'))

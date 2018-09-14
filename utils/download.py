@@ -53,7 +53,9 @@ def _check_duplicate_json(guid):
 
 def _download_and_convert(guid, account, train, thread_storage, image_format):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger('data.download')
+        thread_storage.logger = get_logger('utils.download')
+    pdf_path = os.path.join(DATA_FOLDER, 'pdf', '{}.pdf'.format(guid))
+    img_path = os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, image_format))
     if _check_duplicate_pdf(guid):
         thread_storage.logger.warn('PDF of {} already dumped locally'.format(guid))
     else:
@@ -72,8 +74,6 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
             return
         else:
             key = objects[0]['Key']
-        pdf_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'pdf')), '{}.pdf'.format(guid))
-        img_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'img')), '{}.{}'.format(guid, image_format))
         thread_storage.s3client.download_file(bucket_name, key, pdf_path)
         _check_duplicate_pdf(guid)
     gs_device = '{}gray'.format(image_format)
@@ -87,17 +87,16 @@ def _download_and_convert(guid, account, train, thread_storage, image_format):
 
 def download_and_convert(*guids, n_jobs=-1, image_format=IMAGE_FORMAT):
     thread_storage = threading.local()
-    logger = get_logger('data.download')
+    logger = get_logger('utils.download')
     logger.info('Downloading {} invoices in pdfs'.format(len(guids)))
     accounts = get_labels(*guids, account=True, train=None, flatten=True)
-    train_flags = get_dataset(*guids)
-    Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
-            (delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)\
-            for guid, account, train in tqdm(zip(guids, accounts, train_flags), total=len(guids)))
+    is_in_training_set = get_dataset(*guids)
+    Parallel(n_jobs=n_jobs, backend='threading', verbose=False)(delayed(_download_and_convert)(guid, account, train, thread_storage, image_format)
+            for guid, account, train in tqdm(zip(guids, accounts, is_in_training_set), total=len(guids), desc='Downloading invoice'))
 
 def _download_ocr_file(guid, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
-        thread_storage.logger = get_logger('data.download')
+        thread_storage.logger = get_logger('utils.download')
     logger = thread_storage.logger
     if _check_duplicate_json(guid):
         logger.warn('JSON of {} already dumped locally'.format(guid))
@@ -105,19 +104,19 @@ def _download_ocr_file(guid, thread_storage):
         if getattr(thread_storage, 'client', None) is None:
             thread_storage.client = gs.Client()
         client = thread_storage.client
-        dst_bucket = client.get_bucket(bucket_name=GOOGLE_OUTPUT_BUCKET)
+        dst_bucket = client.get_bucket(bucket_name=GOOGLE_OCR_BUCKET)
         blobs = list(dst_bucket.list_blobs(prefix=guid))
         if len(blobs) < 1:
             logger.error('Cannot find OCR output file of {}'.format(guid))
         else:
             blob = blobs[0]
-            ocr_path = os.path.join(get_dir(os.path.join(DATA_FOLDER, 'ocr')), blob.name)
+            ocr_path = os.path.join(DATA_FOLDER, 'ocr', blob.name)
             blob.download_to_filename(ocr_path)
             _check_duplicate_json(guid)
 
 def download_ocr(*guids, n_jobs=-1):
     thread_storage = threading.local()
-    logger = get_logger('data.download')
+    logger = get_logger('utils.download')
     logger.info('Downloading {} OCRed invoices'.format(len(guids)))
-    Parallel(n_jobs=n_jobs, backend='threading', verbose=int(logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]))\
-            (delayed(_download_ocr_file)(guid, thread_storage) for guid in tqdm(guids))
+    Parallel(n_jobs=n_jobs, backend='threading', verbose=False)(delayed(_download_ocr_file)(guid, thread_storage)
+            for guid in tqdm(guids, desc='Downloading OCR'))

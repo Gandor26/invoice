@@ -105,9 +105,21 @@ venv.bak/
 .mypy_cache/
 
 # data
-data/
-dump*
-warehouse/
+data/pdf/*
+!data/pdf/.gitkeep
+data/img/*
+!data/img/.gitkeep
+data/ocr/*
+!data/ocr/.gitkeep
+data/set/*
+!data/set/.gitkeep
+dump
+warehouse/pdf/*
+!warehouse/pdf/.gitkeep
+warehouse/img/*
+!warehouse/img/.gitkeep
+warehouse/ocr/*
+!warehouse/ocr/.gitkeep
 exp*
 
 # MacOS

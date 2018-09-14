@@ -3,7 +3,7 @@ import logging
 
 __all__ = ['get_dir', 'get_logger']
 
-CONSOLE_FORMAT = logging.Formatter('{asctime}: {pathname}:{lineno} -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
+CONSOLE_FORMAT = logging.Formatter('{asctime}: {pathname}:{lineno} ({levelname}) -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
 FILE_FORMAT = logging.Formatter('{asctime}: {name} -> {message}', '%m/%d/%Y %H:%M:%S', style='{')
 
 def get_dir(path):

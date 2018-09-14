@@ -1,8 +1,7 @@
-from .misc import get_dir
 import os
 
-DATA_FOLDER = get_dir(os.path.expanduser('~/workspace/invoice/data'))
-WAREHOUSE = get_dir(os.path.expanduser('~/workspace/invoice/warehouse'))
+DATA_FOLDER = os.path.expanduser('~/workspace/invoice/data')
+WAREHOUSE = os.path.expanduser('~/workspace/invoice/warehouse')
 IMAGE_FORMAT = 'png'
 
 DB_NAME = 'invoice'
@@ -23,8 +22,9 @@ DATASET_FIELD_NAME = 'dataset'
 AWS_TRAINING_BUCKET = 'appfolio-ml-invoice-training-set'
 AWS_TEST_BUKCET = 'appfolio-ml-invoice-testing-set'
 
-GOOGLE_INPUT_BUCKET = 'af-ml-invoice-training-set'
-GOOGLE_OUTPUT_BUCKET = 'xiaoyong-ocr-bucket'
+GOOGLE_TRAINING_BUCKET = 'af-ml-invoice-training-set'
+GOOGLE_TEST_BUCKET = 'af-ml-invoice-testing-set'
+GOOGLE_OCR_BUCKET = 'xiaoyong-ocr-temp'
 GOOGLE_MIME_TYPE = 'application/pdf'
 
 SCALED_IMAGE_SIZE = 224

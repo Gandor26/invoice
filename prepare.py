@@ -1,28 +1,35 @@
 #! /usr/local/bin/python
-from utils import DATA_FOLDER
+from utils import DATA_FOLDER, get_dir, get_logger
 from utils import get_top_vhosts, get_guids_by_vhost, get_labels
-from utils import download_and_convert, download_ocr, get_dir
+from utils import download_and_convert, download_ocr
+from utils import google_pdf_ocr
 from utils import build_dataset
 from collections import defaultdict
 from numpy import random
 from glob import glob
 import argparse
 import json
+import time
 import os
 
 def prepare_invoices(*vhosts):
     guids = []
     guids.extend(get_guids_by_vhost(*vhosts, train=True))
     guids.extend(get_guids_by_vhost(*vhosts, train=False))
+    download_and_convert(*guids)
+    return guids
+
+def prepare_invoice_ocr(*guids):
+    google_pdf_ocr(*guids)
+    logger = get_logger('utils.download')
+    logger.info('waiting for 60 senconds until OCR json files are available in GOOGLE_OCR_BUCKET')
+    time.sleep(60)
     download_ocr(*guids)
     files = [os.path.split(f)[-1].split('_')[0] for f in glob(os.path.join(DATA_FOLDER, 'ocr', '*.json'))]
     ocred = list(set(files) & set(guids))
-    download_and_convert(*ocred)
     return ocred
 
 def split_dataset(*guids, test_size, seed):
-    if len(guids) == 0:
-        guids = [os.path.split(f)[-1].split('_')[0] for f in glob(os.path.join(DATA_FOLDER, 'ocr', '*.json'))]
     random.seed(seed)
     labels = ['{}_{}'.format(*t) for t in get_labels(*guids, vendor=True, train=None, flatten=True)]
     stats = defaultdict(list)
@@ -41,9 +48,9 @@ def split_dataset(*guids, test_size, seed):
                 test_set[label].append(stats[label][i])
             else:
                 train_set[label].append(stats[label][i])
-    with open(os.path.join(get_dir(os.path.join(DATA_FOLDER, 'set')), 'train.json'), 'w') as f:
+    with open(os.path.join(DATA_FOLDER, 'set', 'train.json'), 'w') as f:
         json.dump(train_set, f)
-    with open(os.path.join(get_dir(os.path.join(DATA_FOLDER, 'set')), 'test.json'), 'w') as f:
+    with open(os.path.join(DATA_FOLDER, 'set', 'test.json'), 'w') as f:
         json.dump(test_set, f)
     return train_set, test_set
 
@@ -53,14 +60,16 @@ def create_dataset_folder(train_set=None, test_set=None, image_size=None):
             with open(os.path.join(DATA_FOLDER, 'set', 'train.json'), 'r') as f:
                 train_set = json.load(f)
         except FileNotFoundError:
-            print('No train split is created, quit..')
+            logger = get_logger('utils.dataset')
+            logger.error('Error!! No train split is created, quit..')
             return
     if test_set is None:
         try:
             with open(os.path.join(DATA_FOLDER, 'set', 'test.json'), 'r') as f:
                 test_set = json.load(f)
         except FileNotFoundError:
-            print('No test split is created, quit..')
+            logger = get_logger('utils.dataset')
+            logger.error('No test split is created, quit..')
             return
     guids_and_labels_train = [(g, l) for l in train_set for g in train_set[l]]
     guids_and_labels_test = [(g, l) for l in test_set for g in test_set[l]]
@@ -72,7 +81,9 @@ if __name__ == '__main__':
     parser.add_argument('vhosts', nargs='+')
     parser.add_argument('--download', action='store_true',
             help='Download invoices and ocr files that belong to the specified vhosts.\
-                    If not enabled, the list of local OCR files is used as dataset')
+                    If not enabled, the downloaded invoice images are used')
+    parser.add_argument('--ocr', action='store_true',
+            help='Doing OCR on the selected invoices. If not enabled, the downloaded OCR outputs are used')
     parser.add_argument('--split', action='store_true',
             help='Performs dataset split. If not enabled, make sure you already have a split dump')
     parser.add_argument('--create', action='store_true',
@@ -87,7 +98,11 @@ if __name__ == '__main__':
     if args.download:
         guids = prepare_invoices(*args.vhosts)
     else:
-        guids = []
+        guids = [os.path.split(f)[-1].split(os.path.extsep)[0] for f in glob(os.path.join(DATA_FOLDER, 'img', '*.png'))]
+    if args.ocr:
+        guids = prepare_invoice_ocr(*guids)
+    else:
+        guids = [os.path.split(f)[-1].split('_')[0] for f in glob(os.path.join(DATA_FOLDER, 'ocr', '*.json'))]
     if args.split:
         train_set, test_set = split_dataset(*guids, test_size=args.test_size, seed=args.seed)
     else:
