@@ -30,7 +30,7 @@ class BaseEngine(object):
         self.num_training_samples = args.num_training_samples
         self.tag = args.tag or 'default'
         self.dump_dir = get_dir(args.dump_dir)
-        self.train_logger = get_logger('train.{}'.format(self.__class__.__name__))
+        self.train_logger = get_logger('train.{}.{}'.format(self.__class__.__name__, self.tag))
 
     def _make_dataset(self, args):
         raise NotImplementedError
@@ -121,7 +121,7 @@ class ImageBoWEngine(BaseEngine):
 
     def test(self):
         epoch = self.load()
-        self.test_logger = get_logger('test.{}'.format(self.__class__.__name__))
+        self.test_logger = get_logger('test.{}.{}'.format(self.__class__.__name__, self.tag))
         acc_meter = AverageMeter('test_accuracy')
         for samples, labels in tqdm(self.dataset.test_loader(self.batch_size), desc='Test'):
             with tc.no_grad():
