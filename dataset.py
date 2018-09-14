@@ -4,8 +4,7 @@ from loader import *
 from bow import BoW
 from torch.utils.data import DataLoader
 from torchvision.datasets import DatasetFolder
-from skimage.io import imread
-from skimage.util import img_as_float
+from PIL import Image
 from collections import Counter
 from glob import glob
 import pickle as pk
@@ -88,7 +87,7 @@ class ImageDataset(DatasetFolder):
         return samples, classes
 
     def loader(self, path):
-        return img_as_float(imread(path, as_gray=True))
+        return Image.open(path)
 
     def get_weight(self, indices):
         cnter = Counter([self.samples[i][1] for i in indices])

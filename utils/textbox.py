@@ -1,6 +1,5 @@
 from .configs import DATA_FOLDER, IMAGE_FORMAT
-from skimage import img_as_float32, img_as_ubyte
-from skimage.io import imread
+from PIL import Image
 from matplotlib import patches, pyplot as plt
 from itertools import cycle
 import pickle as pk
@@ -118,15 +117,14 @@ class BoundingBox(object):
         return super_box
 
     def visualize(self, padding=1e-2, show_sub_boxes=False):
-        image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(self.guid, IMAGE_FORMAT)),
-                as_gray=True)
-        h, w = image.shape
+        image = Image.open(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(self.guid, IMAGE_FORMAT)))
+        w, h = image.size
         padding_pixels = int(min(h, w)*padding)
         upper = max(0, int(h*self.anchor.y)-padding_pixels)
         lower = min(h, int(h*self.anchor.yy)+padding_pixels)
         left = max(0, int(w*self.anchor.x)-padding_pixels)
         right = min(w, int(w*self.anchor.xx)+padding_pixels)
-        sub_image = image[upper:lower, left:right]
+        sub_image = np.array(image.crop((left, upper, right, lower)))
         fig, ax = plt.subplots(1, figsize=(20,20))
         ax.imshow(sub_image, cmap='gray')
         if (show_sub_boxes) and (self.sub_boxes is not None):
@@ -151,9 +149,9 @@ class BoundingBox(object):
         if self.super_box is None:
             self._recursive_rotate(angle)
             image_path = os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(self.guid, IMAGE_FORMAT))
-            image = imread(image_path, as_gray=True)
-            new_image = np.rot90(image, (360+angle)%360//90)
-            imsave(image_path, new_image)
+            image = Image.open(image_path)
+            new_image = image.rotate((360+angle)%360//90, resample=Image.BILINEAR, expand=True)
+            new_image.save(image_path)
         else:
             self.super_box.rotate(angle)
 

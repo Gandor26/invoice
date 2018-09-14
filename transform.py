@@ -1,6 +1,5 @@
 from sklearn.preprocessing import LabelEncoder as BaseLE
-from skimage.util import pad, crop, random_noise
-from skimage.transform import resize
+from PIL import Image, ImageOps
 import numpy as np
 import torch as tc
 
@@ -16,24 +15,27 @@ class Compose(object):
     def __getitem__(self, index):
         return self.transforms[index]
 
+
 class RandomMargin(object):
-    def __init__(self, seed=None, max_margin=5):
+    def __init__(self, max_margin=10, seed=None):
+        np.random.seed(seed)
         self.max_margin = max_margin
-        if seed is not None:
-            np.random.seed(seed)
+
+    def _crop(self, image):
+        margin_top, margin_bottom, margin_left, margin_right = np.random.randint(self.max_margin+1, size=4)
+        cropped_image = ImageOps.crop(image, (margin_left, margin_top, margin_right, margin_bottom))
+        resized_image = cropped_image.resize(image.size, resample=Image.BILINEAR)
+        return resized_image
+
+    def _pad(self, image):
+        margin_top, margin_bottom, margin_left, margin_right = np.random.randint(self.max_margin+1, size=4)
+        padded_image = ImageOps.expand(image, (margin_left, margin_top, margin_right, margin_bottom), fill=255)
+        resized_image = padded_image.resize(image.size, resample=Image.BILINEAR)
+        return resized_image
+
     def __call__(self, image):
         pad_or_crop = np.random.randint(2)
-        if pad_or_crop:
-            # pad
-            margin_top, margin_bottom, margin_left, margin_right  = np.random.randint(self.max_margin+1, size=4)
-            padded_image = pad(image, ((margin_top, margin_bottom), (margin_left, margin_right)), mode='constant', constant_values=1.0)
-            resized_image = resize(padded_image, image.shape)
-        else:
-            # crop
-            margin_top, margin_bottom, margin_left, margin_right  = np.random.randint(self.max_margin+1, size=4)
-            cropped_image = crop(image, ((margin_top, margin_bottom), (margin_left, margin_right)), copy=True)
-            resized_image = resize(cropped_image, image.shape)
-        return resized_image
+        return self._pad(image) if pad_or_crop else self._crop(image)
 
 
 class LabelEncoder(BaseLE):
@@ -68,5 +70,8 @@ class ToTensor(object):
 
 class GrayscaleToTensor(ToTensor):
     def __init__(self, device, dtype):
-        super(GrayscaleToTensor, self).__init__(device, dtype, transform=lambda image: image[np.newaxis])
+        def transform(image):
+            array = np.array(image, dtype=np.uint8)/255.0
+            return array[np.newaxis]
+        super(GrayscaleToTensor, self).__init__(device, dtype, transform=transform)
 

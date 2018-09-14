@@ -3,8 +3,7 @@ from .download import download_and_convert
 from .textbox import parse_ocr_json
 from .misc import get_dir, get_logger
 from glob import glob
-from skimage.io import imread, imsave
-from skimage.transform import resize
+from PIL import Image
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import pickle as pk
@@ -17,14 +16,14 @@ def _process_single_sample(guid, label, train, image_size, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
         thread_storage.logger = get_logger('utils.dataset')
     try:
-       box = parse_ocr_json(guid)
-       original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=True)
-       resized_image = resize(original_image, (image_size, image_size), mode='edge', anti_aliasing=False)
+        box = parse_ocr_json(guid)
+        original_image = Image.open(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)))
+        resized_image = original_image.resize((image_size, image_size), resample=Image.BILINEAR)
     except Exception as e:
         thread_storage.logger.error('Something went wrong in parsing OCR results of {}. Skipping'.format(guid), exc_info=e)
         return
     dataset_dir = get_dir(os.path.join(DATA_FOLDER, 'set', 'train' if train else 'test', label))
-    imsave(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)), resized_image)
+    resized_image.save(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)))
     with open(os.path.join(dataset_dir, '{}.pkl'.format(guid)), 'wb') as f:
         pk.dump(box, f)
 
@@ -32,13 +31,13 @@ def _process_single_image(guid, label, train, image_size, thread_storage):
     if getattr(thread_storage, 'logger', None) is None:
         thread_storage.logger = get_logger('utils.dataset')
     try:
-        original_image = imread(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)), as_gray=False)
-        resized_image = resize(original_image, (image_size, image_size), mode='edge', anti_aliasing=False)
+        original_image = Image.open(os.path.join(DATA_FOLDER, 'img', '{}.{}'.format(guid, IMAGE_FORMAT)))
+        resized_image = original_image.resize((image_size, image_size), resample=Image.BILINEAR)
     except Exception as e:
         thread_storage.logger.error('Something went wrong in processing {}. Skipping'.format(guid), exc_info=e)
         return
     dataset_dir = get_dir(os.path.join(DATA_FOLDER, 'set', 'train' if train else 'test', label))
-    imsave(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)), resized_image)
+    resized_image.save(os.path.join(dataset_dir, '{}.{}'.format(guid, IMAGE_FORMAT)))
 
 def build_dataset(*guids_and_labels, train, image_size=None):
     guids, labels = zip(*guids_and_labels)
