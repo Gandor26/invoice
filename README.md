@@ -25,7 +25,7 @@ Run mongoDB and load database `invoice`
 ```bash
 mkdir ~/workspace
 cd ~/workspace
-git clone https://github.ucsb.edu/x-jin/invoice.git
+git clone https://github.com/Gandor26/invoice.git
 cd invoice
 python prepare.py --download --ocr --split --create
 ```
