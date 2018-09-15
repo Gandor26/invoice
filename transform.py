@@ -27,12 +27,12 @@ class RandomMargin(object):
             # pad
             margin_top, margin_bottom, margin_left, margin_right  = np.random.randint(self.max_margin+1, size=4)
             padded_image = pad(image, ((margin_top, margin_bottom), (margin_left, margin_right)), mode='constant', constant_values=1.0)
-            resized_image = resize(padded_image, image.shape)
+            resized_image = resize(padded_image, image.shape, mode='constant', anti_aliasing=True)
         else:
             # crop
             margin_top, margin_bottom, margin_left, margin_right  = np.random.randint(self.max_margin+1, size=4)
             cropped_image = crop(image, ((margin_top, margin_bottom), (margin_left, margin_right)), copy=True)
-            resized_image = resize(cropped_image, image.shape)
+            resized_image = resize(cropped_image, image.shape, mode='constant', anti_aliasing=True)
         return resized_image
 
 
