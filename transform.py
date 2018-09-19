@@ -5,6 +5,11 @@ import numpy as np
 import torch as tc
 
 class Compose(object):
+    '''
+        Compose a list of transforms into a sequential pipeline
+        Args:
+            transforms: arbitrary number of callables
+    '''
     def __init__(self, *transforms):
         self.transforms = transforms
 
@@ -17,6 +22,13 @@ class Compose(object):
         return self.transforms[index]
 
 class RandomMargin(object):
+    '''
+        Doing data augmentation on an image. It either pads the image or cut a few pixels on the edges, and the processed
+        image is resized to the input size.
+        Args:
+            seed: random seed to fix the output
+            max_margin: the maximum number of pixels to be cut or padded to the image
+    '''
     def __init__(self, seed=None, max_margin=5):
         self.max_margin = max_margin
         if seed is not None:
@@ -37,6 +49,9 @@ class RandomMargin(object):
 
 
 class LabelEncoder(BaseLE):
+    '''
+        Simple wrapper of sklearn.preprocessing.LabelEncoder that accepts scalar input
+    '''
     def fit(self, y):
         if np.isscalar(y):
             y = [y]
@@ -56,6 +71,13 @@ class LabelEncoder(BaseLE):
 
 
 class ToTensor(object):
+    '''
+        Turn an image into a PyTorch tensor
+        Args:
+            device: the device (CPU or GPU) that accommodates the tensor
+            dtype: numerical type of the tensor
+            transform: callable; applied to the input before it's turned into a feature
+    '''
     def __init__(self, device, dtype, transform=None):
         self.device = device
         self.dtype = dtype
@@ -67,6 +89,10 @@ class ToTensor(object):
 
 
 class GrayscaleToTensor(ToTensor):
+    '''
+        Turn an image into a 3D tensor with shape [1, height, width].
+        This is the standard format of grayscale image in PyTorch
+    '''
     def __init__(self, device, dtype):
         super(GrayscaleToTensor, self).__init__(device, dtype, transform=lambda image: image[np.newaxis])
 

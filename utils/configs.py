@@ -24,7 +24,7 @@ AWS_TEST_BUKCET = 'appfolio-ml-invoice-testing-set'
 
 GOOGLE_TRAINING_BUCKET = 'af-ml-invoice-training-set'
 GOOGLE_TEST_BUCKET = 'af-ml-invoice-testing-set'
-GOOGLE_OCR_BUCKET = 'xiaoyong-ocr-temp'
+GOOGLE_OCR_BUCKET = 'xiaoyong-ocr-bucket'
 GOOGLE_MIME_TYPE = 'application/pdf'
 
 SCALED_IMAGE_SIZE = 224

@@ -36,6 +36,14 @@ def make_conv_block(in_channel, out_channel, kernel_size, stride=1, padding=0, a
     return block
 
 class AlexNet(nn.Module):
+    '''
+        Model architecture
+            feature extractor with 5 layers of convolution;
+            classifier as 2 two layer feed-forward net
+        Args:
+            num_classes: how many classes in the end
+            dropout: the dropout rate inside the classifier
+    '''
     def __init__(self, num_classes, dropout=0.5):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
@@ -62,6 +70,13 @@ class AlexNet(nn.Module):
         return x
 
 class AlexBoWNet(AlexNet):
+    '''
+        Ensemble model with the image classifier and BoW model
+        Args:
+            num_classes: the number of classes in the end
+            vocab_size: size of vocabulary; the dimension of WordCountVectorizer output
+            dropout: dropout rate in both image classifier and bow classifier
+    '''
     def __init__(self, num_classes, vocab_size, dropout=0.5):
         super(AlexBoWNet, self).__init__(num_classes, dropout)
         self.bow = nn.Sequential(

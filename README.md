@@ -27,7 +27,7 @@ mkdir ~/workspace
 cd ~/workspace
 git clone https://github.com/Gandor26/invoice.git
 cd invoice
-python prepare.py --download --ocr --split --create
+python prepare.py [vhost name] --download --ocr --split --create
 ```
 Note that there might be a delay while downloading OCR json files from Google cloud after they are generated.
 Once finished, a random split of training/test dataset will be available in `~/workspace/invoice/data/set`
@@ -50,6 +50,6 @@ will show a list of argument to configure the model.
 
 You can press Ctrl-C anytime to stop training and start doing test on the pre-defined test set with the best model evaluated on a randomly generated validation set from training set.
 
-All the output will be available in `~/workspace/logs/{train,test}.log`.
+All the output will be available in `~/workspace/invoice/logs/{train,test}.log`.
 
 
