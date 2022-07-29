@@ -43,7 +43,7 @@ jupyterlab==0.33.6
 jupyterlab-launcher==0.11.2
 MarkupSafe==1.0
 matplotlib==2.1.2
-mistune==0.8.3
+mistune==2.0.3
 nbconvert==5.3.1
 nbformat==4.4.0
 networkx==2.1
